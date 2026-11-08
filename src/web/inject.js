@@ -63,8 +63,9 @@
         : query(desc);
   }
 
-  // ---- Theme -----------------------------------------------------------------
+  // ---- Theme and privacy blur -----------------------------------------------
   let themeOn = !!CFG.theme;
+  let privateOn = !!CFG.privacy;
 
   const addStyle = (id, css) => {
     let el = document.getElementById(id);
@@ -81,8 +82,10 @@
     if (!root) return;
     root.style.setProperty("--wisp-accent", CFG.accent);
     root.classList.toggle("wisp-themed", themeOn);
+    root.classList.toggle("wisp-private", privateOn);
     if (themeOn) addStyle("wisp-theme", CFG.css);
     else document.getElementById("wisp-theme")?.remove();
+    if (!document.getElementById("wisp-privacy")) addStyle("wisp-privacy", CFG.privacyCss);
     if (CFG.userCss) {
       // Keep user.css last so it always wins over the built-in theme.
       const user = document.getElementById("wisp-user");
@@ -108,6 +111,10 @@
         themeOn = !themeOn;
         applyTheme();
         post({ kind: "theme", on: themeOn });
+      } else if (mod && e.shiftKey && key === "b") {
+        privateOn = !privateOn;
+        applyTheme();
+        post({ kind: "privacy", on: privateOn });
       } else if (mod && (key === "=" || key === "+")) post({ kind: "zoom", dir: "in" });
       else if (mod && key === "-") post({ kind: "zoom", dir: "out" });
       else if (mod && key === "0") post({ kind: "zoom", dir: "reset" });
@@ -125,5 +132,10 @@
     applyTheme();
   };
 
-  window.__wisp = { post, setTheme };
+  const setPrivacy = (on) => {
+    privateOn = !!on;
+    applyTheme();
+  };
+
+  window.__wisp = { post, setTheme, setPrivacy };
 })();

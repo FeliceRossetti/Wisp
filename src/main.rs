@@ -37,6 +37,7 @@ enum UserEvent {
 struct TrayMenu {
     show: MenuItem,
     theme: CheckMenuItem,
+    privacy: CheckMenuItem,
     notifications: CheckMenuItem,
     reload: MenuItem,
     quit: MenuItem,
@@ -168,11 +169,7 @@ fn run() -> Result<()> {
             Event::UserEvent(UserEvent::Ipc(msg)) => match msg {
                 Ipc::Notify { title, body } => {
                     if cfg.notifications && !(focused && window.is_visible()) {
-                        let body = if cfg.notification_preview {
-                            body
-                        } else {
-                            String::new()
-                        };
+                        let (title, body) = notification_content(&cfg, title, body);
                         notify(title, body);
                     }
                 }
@@ -188,6 +185,13 @@ fn run() -> Result<()> {
                     cfg.theme_enabled = on;
                     if let Some((_, m)) = &tray {
                         m.theme.set_checked(on);
+                    }
+                    cfg.save(&paths);
+                }
+                Ipc::Privacy { on } => {
+                    cfg.privacy_blur = on;
+                    if let Some((_, m)) = &tray {
+                        m.privacy.set_checked(on);
                     }
                     cfg.save(&paths);
                 }
@@ -221,6 +225,13 @@ fn run() -> Result<()> {
                         let _ = webview.evaluate_script(&format!(
                             "window.__wisp && window.__wisp.setTheme({})",
                             cfg.theme_enabled
+                        ));
+                        cfg.save(&paths);
+                    } else if id == m.privacy.id() {
+                        cfg.privacy_blur = m.privacy.is_checked();
+                        let _ = webview.evaluate_script(&format!(
+                            "window.__wisp && window.__wisp.setPrivacy({})",
+                            cfg.privacy_blur
                         ));
                         cfg.save(&paths);
                     } else if id == m.notifications.id() {
@@ -270,7 +281,12 @@ fn build_webview(
 
     let mut builder = WebViewBuilder::new_with_web_context(web_context)
         .with_url(web::HOME)
-        .with_initialization_script(web::init_script(cfg.theme_enabled, &cfg.accent, user_css))
+        .with_initialization_script(web::init_script(
+            cfg.theme_enabled,
+            cfg.privacy_blur,
+            &cfg.accent,
+            user_css,
+        ))
         .with_devtools(cfg!(debug_assertions))
         .with_clipboard(true)
         .with_autoplay(true)
@@ -341,6 +357,7 @@ fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
     let m = TrayMenu {
         show: MenuItem::new(format!("Show {APP_NAME}"), true, None),
         theme: CheckMenuItem::new("Modern theme", true, cfg.theme_enabled, None),
+        privacy: CheckMenuItem::new("Privacy blur", true, cfg.privacy_blur, None),
         notifications: CheckMenuItem::new("Notifications", true, cfg.notifications, None),
         reload: MenuItem::new("Reload", true, None),
         quit: MenuItem::new("Quit", true, None),
@@ -350,6 +367,7 @@ fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
         &m.show,
         &PredefinedMenuItem::separator(),
         &m.theme,
+        &m.privacy,
         &m.notifications,
         &m.reload,
         &PredefinedMenuItem::separator(),
@@ -398,6 +416,18 @@ fn show_window(window: &Window, shown: &mut bool) {
 fn hide_window(window: &Window, shown: &mut bool) {
     window.set_visible(false);
     *shown = false;
+}
+
+/// What a notification may show: nothing personal while privacy blur is on,
+/// and no message text when previews are off.
+fn notification_content(cfg: &Config, title: String, body: String) -> (String, String) {
+    if cfg.privacy_blur {
+        (APP_NAME.to_string(), "New message".to_string())
+    } else if cfg.notification_preview {
+        (title, body)
+    } else {
+        (title, String::new())
+    }
 }
 
 fn notify(title: String, body: String) {
@@ -486,6 +516,23 @@ fn macos_app_menu() -> Menu {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn notifications_respect_privacy_settings() {
+        let mut cfg = Config::default();
+        let msg = || ("Ann".to_string(), "see you at 8".to_string());
+        let (t, b) = msg();
+        assert_eq!(notification_content(&cfg, t, b), msg());
+        cfg.notification_preview = false;
+        let (t, b) = msg();
+        assert_eq!(notification_content(&cfg, t, b), ("Ann".into(), String::new()));
+        cfg.privacy_blur = true;
+        let (t, b) = msg();
+        assert_eq!(
+            notification_content(&cfg, t, b),
+            (APP_NAME.into(), "New message".into())
+        );
+    }
 
     #[test]
     fn unique_path_avoids_overwrites() {

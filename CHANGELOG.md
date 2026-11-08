@@ -6,6 +6,11 @@ All notable changes to Wisp are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- Privacy blur: chat names, previews, avatars and messages stay blurred until hovered, and
+  notifications only say "New message". Toggle with Ctrl/Cmd+Shift+B or from the tray.
+
 ## [0.1.0] - 2026-11-08
 
 First public release.
