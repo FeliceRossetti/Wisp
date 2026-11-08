@@ -17,10 +17,17 @@ html.wisp-private {
  * in its own element, so match generously. Timestamps are left readable.
  */
 html.wisp-private #pane-side [role="row"] :is(span[title], span[dir], img, [data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], [data-testid="subgroup-identity"]):not([data-testid="chat-list-timestamp"], [data-testid="chat-list-timestamp"] *),
-/* Open chat: contact name and avatar in the header */
-html.wisp-private #main header :is(img, span[title], span[dir]),
+/* ...and the whole avatar column: photos, placeholder icons for chats without a picture, community stacks */
+html.wisp-private #pane-side [role="row"] [data-testid="cell-frame-container"] > :first-child,
+/* Your own profile photo in the navigation bar */
+html.wisp-private header button img,
+/* Open chat: the left part of the header (avatar or placeholder icon, name,
+   members/last seen); the call and menu buttons on the right stay sharp */
+html.wisp-private #main header > :first-child,
 /* Messages (each conversation row, or the bubbles themselves if rows are absent) */
 html.wisp-private #main [role="row"],
+/* System notices such as "X added Y" (date dividers stay readable) */
+html.wisp-private #main [data-testid="conversation-panel-messages"] button:not(:has([data-icon])),
 html.wisp-private #main :is(.message-in, .message-out):not([role="row"] *),
 /* Draft text in the message box while you're not typing */
 html.wisp-private footer [contenteditable="true"]:not(:focus) {
@@ -30,8 +37,11 @@ html.wisp-private footer [contenteditable="true"]:not(:focus) {
 
 /* Hovering reveals just that item */
 html.wisp-private #pane-side [role="row"]:hover :is(span[title], span[dir], img, [data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], [data-testid="subgroup-identity"]),
-html.wisp-private #main header:hover :is(img, span[title], span[dir]),
+html.wisp-private #pane-side [role="row"]:hover [data-testid="cell-frame-container"] > :first-child,
+html.wisp-private header button:hover img,
+html.wisp-private #main header:hover > :first-child,
 html.wisp-private #main [role="row"]:hover,
+html.wisp-private #main [data-testid="conversation-panel-messages"] button:not(:has([data-icon])):hover,
 html.wisp-private #main :is(.message-in, .message-out):not([role="row"] *):hover {
   filter: none;
 }
