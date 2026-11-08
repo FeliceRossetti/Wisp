@@ -8,11 +8,15 @@
  */
 
 html.wisp-private {
-  --wisp-blur: 7px;
+  --wisp-blur: 9px;
 }
 
-/* Chat list: names, last-message previews and avatars */
-html.wisp-private #pane-side [role="row"] :is([data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], img),
+/*
+ * Chat list: every name, preview and avatar in a row. Names and previews are
+ * spans with a title or dir attribute; community rows put the community name
+ * in its own element, so match generously. Timestamps are left readable.
+ */
+html.wisp-private #pane-side [role="row"] :is(span[title], span[dir], img, [data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], [data-testid="subgroup-identity"]):not([data-testid="chat-list-timestamp"], [data-testid="chat-list-timestamp"] *),
 /* Open chat: contact name and avatar in the header */
 html.wisp-private #main header :is(img, span[title], span[dir]),
 /* Messages (each conversation row, or the bubbles themselves if rows are absent) */
@@ -25,7 +29,7 @@ html.wisp-private footer [contenteditable="true"]:not(:focus) {
 }
 
 /* Hovering reveals just that item */
-html.wisp-private #pane-side [role="row"]:hover :is([data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], img),
+html.wisp-private #pane-side [role="row"]:hover :is(span[title], span[dir], img, [data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], [data-testid="subgroup-identity"]),
 html.wisp-private #main header:hover :is(img, span[title], span[dir]),
 html.wisp-private #main [role="row"]:hover,
 html.wisp-private #main :is(.message-in, .message-out):not([role="row"] *):hover {
