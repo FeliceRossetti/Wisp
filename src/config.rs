@@ -10,6 +10,9 @@ use std::path::PathBuf;
 pub struct Config {
     /// Apply the bundled modern theme on top of WhatsApp Web.
     pub theme_enabled: bool,
+    /// Blur chat names, previews and messages until hovered, and hide
+    /// notification contents.
+    pub privacy_blur: bool,
     /// Accent color used by the theme (any CSS color).
     pub accent: String,
     /// Hide to the tray instead of quitting when the window is closed.
@@ -41,6 +44,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             theme_enabled: true,
+            privacy_blur: false,
             accent: "#06bcbc".into(),
             close_to_tray: true,
             start_hidden: false,

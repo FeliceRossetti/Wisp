@@ -89,6 +89,7 @@ src/
   web.rs          URL policy, page <-> app messages, builds the injected script
   web/inject.js   notification bridge, keyboard shortcuts, theme loader
   web/theme.css   the built-in modern theme
+  web/privacy.css privacy blur rules
   config.rs       settings file
   icon.rs         window and tray icons (embedded from assets/)
 assets/           logo and generated icons (.png, .ico, .icns)

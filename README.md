@@ -37,6 +37,9 @@ reimplement the protocol, automate your account or read your messages.
 - **Modern theme.** System fonts, slim scrollbars, rounded chat rows, pill-shaped search and
   composer, softer message bubbles and an accent color you choose. Toggle it any time with
   <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>.
+- **Privacy blur.** Blurs chat names, message previews, avatars and messages until you hover over
+  them, and hides who wrote and what they wrote from notifications. Handy in public, at work or
+  when sharing your screen. Toggle it with <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>.
 - **Your own CSS.** Drop a `user.css` next to the settings file and it's applied on every start.
 - **Tray icon** with an unread badge. Closing the window keeps Wisp running in the tray.
 - **Native notifications** for new messages, with an option to hide message previews.
@@ -116,12 +119,13 @@ like WhatsApp Web.
 | Shortcut | Action |
 |---|---|
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Toggle the modern theme |
+| <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> | Toggle privacy blur |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Zoom in / out / reset |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>R</kbd> or <kbd>F5</kbd> | Reload |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>W</kbd> | Hide to the tray |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Q</kbd> | Quit |
 
-The tray menu also lets you toggle the theme and notifications, reload, or quit.
+The tray menu also lets you toggle the theme, privacy blur and notifications, reload, or quit.
 
 ## Configuration
 
@@ -135,6 +139,7 @@ Settings live in `config.toml`, created on first run:
 
 ```toml
 theme_enabled = true
+privacy_blur = false        # blur chats until hovered; hide notification contents
 accent = "#06bcbc"          # any CSS color
 close_to_tray = true
 start_hidden = false

@@ -1,0 +1,39 @@
+/*
+ * Privacy blur: hides chat names, previews, avatars and messages until you
+ * hover them, so nobody can read over your shoulder or on a shared screen.
+ *
+ * Active while <html> has the wisp-private class (Ctrl/Cmd+Shift+B or the
+ * tray menu). Like the theme, it only targets stable hooks: roles, ids and
+ * data-testid attributes.
+ */
+
+html.wisp-private {
+  --wisp-blur: 7px;
+}
+
+/* Chat list: names, last-message previews and avatars */
+html.wisp-private #pane-side [role="row"] :is([data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], img),
+/* Open chat: contact name and avatar in the header */
+html.wisp-private #main header :is(img, span[title], span[dir]),
+/* Messages (each conversation row, or the bubbles themselves if rows are absent) */
+html.wisp-private #main [role="row"],
+html.wisp-private #main :is(.message-in, .message-out):not([role="row"] *),
+/* Draft text in the message box while you're not typing */
+html.wisp-private footer [contenteditable="true"]:not(:focus) {
+  filter: blur(var(--wisp-blur));
+  transition: filter 120ms ease;
+}
+
+/* Hovering reveals just that item */
+html.wisp-private #pane-side [role="row"]:hover :is([data-testid="cell-frame-title"], [data-testid="cell-frame-secondary"], img),
+html.wisp-private #main header:hover :is(img, span[title], span[dir]),
+html.wisp-private #main [role="row"]:hover,
+html.wisp-private #main :is(.message-in, .message-out):not([role="row"] *):hover {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.wisp-private * {
+    transition: none !important;
+  }
+}

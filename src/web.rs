@@ -9,6 +9,7 @@ const HOST: &str = "web.whatsapp.com";
 
 const INJECT_JS: &str = include_str!("web/inject.js");
 const THEME_CSS: &str = include_str!("web/theme.css");
+const PRIVACY_CSS: &str = include_str!("web/privacy.css");
 
 /// A WebKit user agent WhatsApp Web accepts. WKWebView and WebKitGTK don't
 /// advertise a Safari version by default, so the site would call them unsupported.
@@ -28,6 +29,9 @@ pub enum Ipc {
     Quit,
     Hide,
     Theme {
+        on: bool,
+    },
+    Privacy {
         on: bool,
     },
     Zoom {
@@ -50,11 +54,13 @@ impl Ipc {
 }
 
 /// Build the script injected into every document.
-pub fn init_script(theme: bool, accent: &str, user_css: &str) -> String {
+pub fn init_script(theme: bool, privacy: bool, accent: &str, user_css: &str) -> String {
     let cfg = serde_json::json!({
         "theme": theme,
+        "privacy": privacy,
         "accent": accent,
         "css": THEME_CSS,
+        "privacyCss": PRIVACY_CSS,
         "userCss": user_css,
     });
     INJECT_JS.replace("__WISP_CONFIG__", &cfg.to_string())
@@ -131,13 +137,18 @@ mod tests {
             Some(Ipc::Zoom { dir: ZoomDir::In })
         );
         assert_eq!(Ipc::parse(r#"{"kind":"quit"}"#), Some(Ipc::Quit));
+        assert_eq!(
+            Ipc::parse(r#"{"kind":"privacy","on":true}"#),
+            Some(Ipc::Privacy { on: true })
+        );
         assert_eq!(Ipc::parse(r#"{"kind":"rm -rf"}"#), None);
     }
 
     #[test]
     fn script_has_config() {
-        let s = init_script(true, "#ff0000", "");
+        let s = init_script(true, false, "#ff0000", "");
         assert!(!s.contains("__WISP_CONFIG__"));
         assert!(s.contains("#ff0000"));
+        assert!(s.contains("wisp-private"), "privacy CSS is embedded");
     }
 }
