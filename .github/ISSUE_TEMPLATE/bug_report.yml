@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in Wisp doesn't work as expected.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+        **Please don't include chats, phone numbers, contact names or QR codes** in anything you post here.
+        Security problems belong in a [private report](../security/advisories/new), not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open Wisp
+        2. Minimize the window
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Wisp version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple silicon)
+        - macOS (Intel)
+        - Linux
+    validations:
+      required: true
+  - type: input
+    id: os-details
+    attributes:
+      label: OS version and details
+      description: For Linux, include the distribution and desktop environment (e.g. Ubuntu 24.04, GNOME, Wayland).
+  - type: dropdown
+    id: theme
+    attributes:
+      label: Does it also happen with the Wisp theme turned off (Ctrl/Cmd+Shift+T)?
+      options:
+        - "Yes"
+        - "No, only with the theme on"
+        - "Didn't check"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Optional. Blur anything personal before attaching screenshots.

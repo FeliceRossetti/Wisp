@@ -1,0 +1,120 @@
+name: Release
+
+# Push a tag like v0.2.0 on main to build installers for every platform
+# and publish them as a GitHub release.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: v
+        name: Tag must be on main and match Cargo.toml
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          CRATE=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          [ "$TAG" = "$CRATE" ] || { echo "::error::Tag v$TAG does not match Cargo.toml version $CRATE"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::Release tags must point at a commit on main"; exit 1; }
+          echo "version=$TAG" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows-x86_64
+          - os: macos-latest
+            name: macos-universal
+          - os: ubuntu-22.04
+            name: linux-x86_64
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev \
+            libsoup-3.0-dev libdbus-1-dev libayatana-appindicator3-dev
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cargo build --release
+          mkdir -p dist/Wisp
+          cp target/release/wisp.exe dist/Wisp/Wisp.exe
+          cp README.md LICENSE dist/Wisp/
+          cd dist && 7z a "Wisp-$VERSION-${{ matrix.name }}.zip" Wisp
+
+      - name: Build (macOS universal .app)
+        if: runner.os == 'macOS'
+        run: |
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+          APP=dist/Wisp.app
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp assets/icons/wisp.icns "$APP/Contents/Resources/Wisp.icns"
+          lipo -create -output "$APP/Contents/MacOS/Wisp" \
+            target/aarch64-apple-darwin/release/wisp target/x86_64-apple-darwin/release/wisp
+          sed "s/__VERSION__/$VERSION/g" packaging/macos/Info.plist > "$APP/Contents/Info.plist"
+          codesign --force --deep --sign - "$APP"
+          cd dist && ditto -c -k --keepParent Wisp.app "Wisp-$VERSION-${{ matrix.name }}.zip"
+
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo build --release
+          D=dist/Wisp-$VERSION-${{ matrix.name }}
+          mkdir -p "$D"
+          cp target/release/wisp "$D/"
+          cp assets/icons/wisp-512.png "$D/wisp.png"
+          cp packaging/linux/wisp.desktop packaging/linux/install.sh README.md LICENSE "$D/"
+          chmod +x "$D/install.sh"
+          tar -C dist -czf "$D.tar.gz" "$(basename "$D")"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+
+  publish:
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out
+          sha256sum * > SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" * --title "Wisp $GITHUB_REF_NAME" --generate-notes

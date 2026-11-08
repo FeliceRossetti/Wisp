@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Wisp
+Comment=Lightweight desktop client for WhatsApp Web
+Exec=wisp
+Icon=wisp
+Terminal=false
+Categories=Network;InstantMessaging;Chat;
+StartupWMClass=wisp
+Keywords=WhatsApp;Chat;Messaging;
