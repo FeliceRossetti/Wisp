@@ -1,10 +1,12 @@
 name: Release
 
 # Push a tag like v0.2.0 on main to build installers for every platform
-# and publish them as a GitHub release.
+# and publish them as a GitHub release. It can also be started by hand
+# from the Actions tab, choosing the tag to release.
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,6 +26,7 @@ jobs:
       - id: v
         name: Tag must be on main and match Cargo.toml
         run: |
+          [ "$GITHUB_REF_TYPE" = "tag" ] || { echo "::error::Run this workflow on a release tag, not a branch"; exit 1; }
           TAG="${GITHUB_REF_NAME#v}"
           CRATE=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
           [ "$TAG" = "$CRATE" ] || { echo "::error::Tag v$TAG does not match Cargo.toml version $CRATE"; exit 1; }

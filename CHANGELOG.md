@@ -6,6 +6,10 @@ All notable changes to Wisp are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-08
+
+First public release.
+
 ### Added
 
 - Desktop app for WhatsApp Web on Windows, macOS and Linux, using the system webview.
@@ -20,3 +24,6 @@ All notable changes to Wisp are documented here. The format is based on
 - Window size, position and zoom are remembered.
 - Windows benchmark script comparing Wisp with the Microsoft Store app.
 - Release packages: Windows zip, macOS universal app, and Linux tarball with a user installer.
+
+[Unreleased]: https://github.com/FeliceRossetti/Wisp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/FeliceRossetti/Wisp/releases/tag/v0.1.0
