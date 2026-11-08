@@ -9,6 +9,7 @@
 mod activity;
 mod config;
 mod icon;
+mod lock;
 mod web;
 
 use anyhow::{Context, Result};
@@ -31,6 +32,8 @@ enum UserEvent {
     Title(String),
     Tray(TrayIconEvent),
     Menu(MenuEvent),
+    /// Result of a Windows Hello / Touch ID prompt.
+    Auth(lock::SystemAuth),
 }
 
 /// Ids of the tray menu entries, so menu events can be matched.
@@ -39,6 +42,8 @@ struct TrayMenu {
     theme: CheckMenuItem,
     privacy: CheckMenuItem,
     notifications: CheckMenuItem,
+    app_lock: CheckMenuItem,
+    lock_now: MenuItem,
     reload: MenuItem,
     quit: MenuItem,
 }
@@ -54,6 +59,12 @@ fn run() -> Result<()> {
     let paths = Paths::resolve()?;
     let mut cfg = Config::load(&paths);
     let user_css = std::fs::read_to_string(&paths.user_css).unwrap_or_default();
+    let system_unlock = lock::system_method();
+    if cfg.app_lock && cfg.pin.is_none() && system_unlock.is_none() {
+        // Nothing could unlock it; don't lock the user out of their own app.
+        eprintln!("app lock: no PIN and no system unlock available; turning app lock off");
+        cfg.app_lock = false;
+    }
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     forward_tray_and_menu_events(event_loop.create_proxy());
@@ -91,6 +102,7 @@ fn run() -> Result<()> {
         &mut web_context,
         &cfg,
         &user_css,
+        system_unlock,
         event_loop.create_proxy(),
     )?;
     let _ = webview.zoom(cfg.zoom);
@@ -103,12 +115,16 @@ fn run() -> Result<()> {
     // ---- Event loop ------------------------------------------------------------
     let mut tray: Option<(TrayIcon, TrayMenu)> = None;
     let mut unread: u32 = 0;
-    let mut focused = !cfg.start_hidden;
+    // Ask rather than assume: a window that opens behind others never gets the
+    // focus events that would otherwise tell us.
+    let mut focused = window.is_focused();
     let mut activity = activity::Activity::new(focused);
     // What the app has shown or hidden. tao applies visibility changes a moment later,
     // so asking the window right after a change can give a stale answer.
     let mut shown = !cfg.start_hidden;
     let mut minimized = false;
+    let mut lock_state = lock::LockState::new(cfg.app_lock, system_unlock);
+    let proxy = event_loop.create_proxy();
 
     event_loop.run(move |event, _target, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -169,7 +185,7 @@ fn run() -> Result<()> {
             Event::UserEvent(UserEvent::Ipc(msg)) => match msg {
                 Ipc::Notify { title, body } => {
                     if cfg.notifications && !(focused && window.is_visible()) {
-                        let (title, body) = notification_content(&cfg, title, body);
+                        let (title, body) = notification_content(&cfg, lock_state.locked, title, body);
                         notify(title, body);
                     }
                 }
@@ -195,6 +211,40 @@ fn run() -> Result<()> {
                     }
                     cfg.save(&paths);
                 }
+                Ipc::Ready => push_lock(&webview, &lock_state),
+                Ipc::Lock => {
+                    if cfg.app_lock {
+                        lock_state.lock();
+                        push_lock(&webview, &lock_state);
+                    }
+                }
+                Ipc::Unlock => {
+                    if lock_state.start_system_auth() {
+                        let p = proxy.clone();
+                        lock::request_system_auth(&window, move |r| {
+                            let _ = p.send_event(UserEvent::Auth(r));
+                        });
+                        push_lock(&webview, &lock_state);
+                    }
+                }
+                Ipc::Pin { pin } => {
+                    lock_state.try_pin(cfg.pin.as_ref(), &pin, std::time::Instant::now());
+                    push_lock(&webview, &lock_state);
+                }
+                Ipc::SetPin { pin } => {
+                    // Only accepted while the "choose a PIN" screen is open.
+                    if lock_state.setup && !lock_state.locked && lock::valid_pin(&pin) {
+                        cfg.pin = Some(lock::PinHash::new(&pin));
+                        cfg.app_lock = true;
+                        lock_state.end_setup();
+                        cfg.save(&paths);
+                        push_lock(&webview, &lock_state);
+                    }
+                }
+                Ipc::CancelSetup => {
+                    lock_state.end_setup();
+                    push_lock(&webview, &lock_state);
+                }
                 Ipc::Zoom { dir } => {
                     cfg.zoom = match dir {
                         ZoomDir::In => Config::clamp_zoom(cfg.zoom + 0.1),
@@ -212,6 +262,11 @@ fn run() -> Result<()> {
                 button_state: MouseButtonState::Up,
                 ..
             })) => show_window(&window, &mut shown),
+
+            Event::UserEvent(UserEvent::Auth(result)) => {
+                lock_state.finish_system_auth(result);
+                push_lock(&webview, &lock_state);
+            }
 
             Event::UserEvent(UserEvent::Menu(ev)) => {
                 if let Some((_, m)) = &tray {
@@ -234,6 +289,24 @@ fn run() -> Result<()> {
                             cfg.privacy_blur
                         ));
                         cfg.save(&paths);
+                    } else if id == m.app_lock.id() {
+                        if lock_state.locked {
+                            // Can't be changed from the tray while locked.
+                        } else if cfg.app_lock {
+                            cfg.app_lock = false;
+                            cfg.pin = None;
+                            cfg.save(&paths);
+                        } else {
+                            // Turned on once a PIN is chosen in the window.
+                            lock_state.begin_setup();
+                            show_window(&window, &mut shown);
+                            push_lock(&webview, &lock_state);
+                        }
+                    } else if id == m.lock_now.id() {
+                        if cfg.app_lock {
+                            lock_state.lock();
+                            push_lock(&webview, &lock_state);
+                        }
                     } else if id == m.notifications.id() {
                         cfg.notifications = m.notifications.is_checked();
                         cfg.save(&paths);
@@ -247,8 +320,27 @@ fn run() -> Result<()> {
         }
 
         // Let the webview rest while the window is hidden, minimized or left unfocused.
-        if let Some(at) = activity.update(&webview, shown && !minimized) {
+        let in_use = shown && !minimized && focused;
+        let mut wake = activity.update(&webview, shown && !minimized);
+
+        // Lock after a while away, and keep the tray in step with the lock.
+        let now = std::time::Instant::now();
+        lock_state.set_away(!in_use, now);
+        let (locked_now, lock_due) = lock_state.check_idle(cfg.app_lock, cfg.lock_after_minutes, now);
+        if locked_now {
+            push_lock(&webview, &lock_state);
+        }
+        wake = match (wake, lock_due) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        if let Some(at) = wake {
             *control_flow = ControlFlow::WaitUntil(at);
+        }
+        if let Some((_, m)) = &tray {
+            m.app_lock.set_checked(cfg.app_lock);
+            m.app_lock.set_enabled(!lock_state.locked);
+            m.lock_now.set_enabled(cfg.app_lock && !lock_state.locked);
         }
 
         if quit {
@@ -274,6 +366,7 @@ fn build_webview(
     web_context: &mut WebContext,
     cfg: &Config,
     user_css: &str,
+    system_unlock: Option<&str>,
     proxy: EventLoopProxy<UserEvent>,
 ) -> Result<WebView> {
     let ipc_proxy = proxy.clone();
@@ -281,12 +374,14 @@ fn build_webview(
 
     let mut builder = WebViewBuilder::new_with_web_context(web_context)
         .with_url(web::HOME)
-        .with_initialization_script(web::init_script(
-            cfg.theme_enabled,
-            cfg.privacy_blur,
-            &cfg.accent,
+        .with_initialization_script(web::init_script(&web::PageConfig {
+            theme: cfg.theme_enabled,
+            privacy: cfg.privacy_blur,
+            accent: &cfg.accent,
             user_css,
-        ))
+            locked: cfg.app_lock,
+            lock_system: system_unlock.unwrap_or(""),
+        }))
         .with_devtools(cfg!(debug_assertions))
         .with_clipboard(true)
         .with_autoplay(true)
@@ -358,6 +453,8 @@ fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
         show: MenuItem::new(format!("Show {APP_NAME}"), true, None),
         theme: CheckMenuItem::new("Modern theme", true, cfg.theme_enabled, None),
         privacy: CheckMenuItem::new("Privacy blur", true, cfg.privacy_blur, None),
+        app_lock: CheckMenuItem::new("App lock", true, cfg.app_lock, None),
+        lock_now: MenuItem::new("Lock now", cfg.app_lock, None),
         notifications: CheckMenuItem::new("Notifications", true, cfg.notifications, None),
         reload: MenuItem::new("Reload", true, None),
         quit: MenuItem::new("Quit", true, None),
@@ -368,6 +465,8 @@ fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
         &PredefinedMenuItem::separator(),
         &m.theme,
         &m.privacy,
+        &m.app_lock,
+        &m.lock_now,
         &m.notifications,
         &m.reload,
         &PredefinedMenuItem::separator(),
@@ -420,14 +519,18 @@ fn hide_window(window: &Window, shown: &mut bool) {
 
 /// What a notification may show: nothing personal while privacy blur is on,
 /// and no message text when previews are off.
-fn notification_content(cfg: &Config, title: String, body: String) -> (String, String) {
-    if cfg.privacy_blur {
+fn notification_content(cfg: &Config, locked: bool, title: String, body: String) -> (String, String) {
+    if cfg.privacy_blur || locked {
         (APP_NAME.to_string(), "New message".to_string())
     } else if cfg.notification_preview {
         (title, body)
     } else {
         (title, String::new())
     }
+}
+
+fn push_lock(webview: &WebView, state: &lock::LockState) {
+    let _ = webview.evaluate_script(&state.script());
 }
 
 fn notify(title: String, body: String) {
@@ -522,14 +625,22 @@ mod tests {
         let mut cfg = Config::default();
         let msg = || ("Ann".to_string(), "see you at 8".to_string());
         let (t, b) = msg();
-        assert_eq!(notification_content(&cfg, t, b), msg());
+        assert_eq!(notification_content(&cfg, false, t, b), msg());
         cfg.notification_preview = false;
         let (t, b) = msg();
-        assert_eq!(notification_content(&cfg, t, b), ("Ann".into(), String::new()));
+        assert_eq!(
+            notification_content(&cfg, false, t, b),
+            ("Ann".into(), String::new())
+        );
+        let (t, b) = msg();
+        assert_eq!(
+            notification_content(&cfg, true, t, b),
+            (APP_NAME.into(), "New message".into())
+        );
         cfg.privacy_blur = true;
         let (t, b) = msg();
         assert_eq!(
-            notification_content(&cfg, t, b),
+            notification_content(&cfg, false, t, b),
             (APP_NAME.into(), "New message".into())
         );
     }

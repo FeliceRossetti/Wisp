@@ -8,6 +8,11 @@ All notable changes to Wisp are documented here. The format is based on
 
 ### Added
 
+- App lock: hides your chats behind a lock screen on start, on demand (Ctrl/Cmd+Shift+L or the
+  tray) and after a while away. Unlock with Windows Hello, Touch ID / your Mac password, or a PIN
+  (stored only as a salted hash; 5 wrong tries pause entry for 30 seconds). Messages keep arriving
+  while locked, and notifications stay neutral.
+
 - Privacy blur: chat names, previews, avatars and messages stay blurred until hovered, and
   notifications only say "New message". Toggle with Ctrl/Cmd+Shift+B or from the tray.
 

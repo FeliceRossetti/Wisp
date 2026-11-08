@@ -94,6 +94,111 @@
     }
   };
 
+  // ---- App lock ----------------------------------------------------------------
+  // The app owns the lock state: the page only draws it and asks to unlock.
+  // A page that may need locking starts locked, so chats never flash on load.
+  let lock = { locked: !!CFG.appLock, setup: false, system: CFG.lockSystem || "", message: "", busy: false };
+  let usePin = !lock.system;
+  let lockEl = null;
+
+  const el = (tag, props = {}, ...kids) => {
+    const e = document.createElement(tag);
+    Object.assign(e, props);
+    e.append(...kids);
+    return e;
+  };
+  const pinInput = (placeholder) =>
+    el("input", { type: "password", inputMode: "numeric", autocomplete: "off", maxLength: 12, placeholder });
+  const linkButton = (text, onclick) => el("button", { type: "button", className: "link", textContent: text, onclick });
+
+  const renderLock = () => {
+    const root = document.documentElement;
+    if (!root) return;
+    const setupOnly = lock.setup && !lock.locked;
+    root.classList.toggle("wisp-locked", lock.locked);
+    root.classList.toggle("wisp-lock-setup", setupOnly);
+    lockEl?.remove();
+    lockEl = null;
+    if (!lock.locked && !setupOnly) return;
+    if (!document.getElementById("wisp-lock-style")) addStyle("wisp-lock-style", CFG.lockCss);
+
+    const message = el("p", { className: "message", textContent: lock.message || "" });
+    message.setAttribute("role", "alert");
+    const card = el("div", { className: "card" }, el("img", { src: CFG.logo, alt: "" }));
+    let focus;
+
+    if (setupOnly) {
+      const first = pinInput("New PIN");
+      const second = pinInput("Confirm PIN");
+      const form = el("form", {}, first, second, el("button", { type: "submit", textContent: "Turn on app lock" }),
+        linkButton("Cancel", () => post({ kind: "cancelsetup" })), message);
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        if (!/^\d{4,12}$/.test(first.value)) message.textContent = "Use 4 to 12 digits.";
+        else if (first.value !== second.value) message.textContent = "The PINs don't match.";
+        else post({ kind: "setpin", pin: first.value });
+      };
+      card.append(
+        el("h1", { textContent: "Choose a PIN" }),
+        el("p", {
+          textContent: lock.system
+            ? `You'll unlock Wisp with ${lock.system}. The PIN is a backup for when that isn't available.`
+            : "You'll enter it to unlock Wisp.",
+        }),
+        form,
+      );
+      focus = first;
+    } else if (lock.system && !usePin) {
+      const button = el("button", {
+        type: "submit",
+        textContent: lock.busy ? `Waiting for ${lock.system}…` : `Unlock with ${lock.system}`,
+        disabled: lock.busy,
+      });
+      const form = el("form", {}, button, linkButton("Use PIN instead", () => { usePin = true; renderLock(); }), message);
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        post({ kind: "unlock" });
+      };
+      card.append(el("h1", { textContent: "Wisp is locked" }), el("p", { textContent: "Your chats are hidden until you unlock." }), form);
+      focus = button;
+    } else {
+      const input = pinInput("PIN");
+      const kids = [input, el("button", { type: "submit", textContent: "Unlock" })];
+      if (lock.system) kids.push(linkButton(`Use ${lock.system} instead`, () => { usePin = false; renderLock(); }));
+      const form = el("form", {}, ...kids, message);
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        post({ kind: "pin", pin: input.value });
+        input.value = "";
+      };
+      card.append(el("h1", { textContent: "Wisp is locked" }), el("p", { textContent: "Enter your PIN to unlock." }), form);
+      focus = input;
+    }
+
+    lockEl = el("div", { id: "wisp-lock" }, card);
+    lockEl.setAttribute("role", "dialog");
+    lockEl.setAttribute("aria-modal", "true");
+    root.appendChild(lockEl);
+    setTimeout(() => focus?.focus(), 0);
+  };
+
+  const setLock = (state) => {
+    const wasLocked = lock.locked;
+    lock = { ...lock, ...state };
+    if (lock.locked && !wasLocked) usePin = !lock.system;
+    renderLock();
+  };
+
+  if (document.documentElement) renderLock();
+  document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+      renderLock();
+      post({ kind: "ready" });
+    },
+    { once: true },
+  );
+
   if (document.documentElement) applyTheme();
   document.addEventListener("DOMContentLoaded", applyTheme, { once: true });
 
@@ -103,8 +208,21 @@
     (e) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+      // While locked, keys only reach the lock screen (and Quit still works).
+      if (lock.locked || (lock.setup && lockEl)) {
+        e.stopPropagation();
+        if (mod && !e.shiftKey && key === "q") {
+          e.preventDefault();
+          post({ kind: "quit" });
+        } else if (!(e.target instanceof Node && lockEl?.contains(e.target))) {
+          e.preventDefault();
+          lockEl?.querySelector("input, button")?.focus();
+        }
+        return;
+      }
       let handled = true;
-      if (mod && !e.shiftKey && key === "q") post({ kind: "quit" });
+      if (mod && e.shiftKey && key === "l") post({ kind: "lock" });
+      else if (mod && !e.shiftKey && key === "q") post({ kind: "quit" });
       else if (mod && !e.shiftKey && key === "w") post({ kind: "hide" });
       else if ((mod && !e.shiftKey && key === "r") || e.key === "F5") location.reload();
       else if (mod && e.shiftKey && key === "t") {
@@ -137,5 +255,5 @@
     applyTheme();
   };
 
-  window.__wisp = { post, setTheme, setPrivacy };
+  window.__wisp = { post, setTheme, setPrivacy, setLock };
 })();

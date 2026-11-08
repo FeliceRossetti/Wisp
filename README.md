@@ -40,6 +40,9 @@ reimplement the protocol, automate your account or read your messages.
 - **Privacy blur.** Blurs chat names, message previews, avatars and messages until you hover over
   them, and hides who wrote and what they wrote from notifications. Handy in public, at work or
   when sharing your screen. Toggle it with <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>.
+- **App lock.** Keeps your chats behind a lock screen when Wisp starts and after you've been away
+  for a while. Unlock with Windows Hello, Touch ID (or your Mac password), or a Wisp PIN. Messages
+  keep arriving while it's locked, and notifications don't show who wrote or what.
 - **Your own CSS.** Drop a `user.css` next to the settings file and it's applied on every start.
 - **Tray icon** with an unread badge. Closing the window keeps Wisp running in the tray.
 - **Native notifications** for new messages, with an option to hide message previews.
@@ -120,12 +123,29 @@ like WhatsApp Web.
 |---|---|
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Toggle the modern theme |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> | Toggle privacy blur |
+| <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | Lock Wisp (when app lock is on) |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Zoom in / out / reset |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>R</kbd> or <kbd>F5</kbd> | Reload |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>W</kbd> | Hide to the tray |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Q</kbd> | Quit |
 
-The tray menu also lets you toggle the theme, privacy blur and notifications, reload, or quit.
+The tray menu also lets you toggle the theme, privacy blur, app lock and notifications, lock Wisp,
+reload, or quit.
+
+### App lock
+
+Turn it on from the tray menu (**App lock**) and choose a PIN. Where your computer supports it, you
+unlock with **Windows Hello** or **Touch ID / your Mac password**, and the PIN is a backup for when
+that isn't available. On Linux you unlock with the PIN.
+
+Wisp locks when it starts, when you press <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> or
+choose **Lock now**, and after the window has been unfocused, minimized or in the tray for
+`lock_after_minutes` (5 by default; 0 turns that off). After 5 wrong PINs, PIN entry pauses for 30
+seconds. Only a salted, slow hash of the PIN is stored. To change the PIN, turn app lock off and
+on again.
+
+App lock keeps people who use your computer from reading your chats in Wisp. It isn't a substitute
+for locking your computer: someone signed in as you could still read Wisp's files.
 
 ## Configuration
 
@@ -140,6 +160,8 @@ Settings live in `config.toml`, created on first run:
 ```toml
 theme_enabled = true
 privacy_blur = false        # blur chats until hovered; hide notification contents
+app_lock = false            # turn on from the tray, which also asks for a PIN
+lock_after_minutes = 5      # lock after this long away; 0 = only on start or by hand
 accent = "#06bcbc"          # any CSS color
 close_to_tray = true
 start_hidden = false
