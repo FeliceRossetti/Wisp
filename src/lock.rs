@@ -237,6 +237,8 @@ impl LockState {
 
 /// Outcome of asking the operating system to verify the user.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// Linux has no system prompt, so it only ever reports Unavailable.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub enum SystemAuth {
     Verified,
     Failed,
@@ -311,10 +313,23 @@ mod platform {
     use block2::RcBlock;
     use objc2::runtime::Bool;
     use objc2_foundation::{NSError, NSString};
-    use objc2_local_authentication::{LAContext, LAPolicy};
+    use objc2_local_authentication::{LAContext, LAError, LAPolicy};
     use std::sync::Mutex;
 
     pub const LABEL: &str = "Touch ID or your password";
+
+    /// What a LocalAuthentication error code means for the lock screen.
+    fn outcome(code: Option<isize>) -> SystemAuth {
+        match code.map(LAError) {
+            Some(
+                LAError::UserCancel | LAError::SystemCancel | LAError::AppCancel | LAError::UserFallback,
+            ) => SystemAuth::Canceled,
+            Some(LAError::PasscodeNotSet | LAError::BiometryNotAvailable | LAError::BiometryNotEnrolled) => {
+                SystemAuth::Unavailable
+            }
+            _ => SystemAuth::Failed,
+        }
+    }
 
     pub fn available() -> bool {
         let ctx = unsafe { LAContext::new() };
@@ -330,14 +345,16 @@ mod platform {
         let done = Mutex::new(Some(done));
         // macOS cancels the request if the context is freed, so the reply keeps it alive.
         let keep_alive = ctx.clone();
-        let reply = RcBlock::new(move |ok: Bool, _err: *mut NSError| {
+        let reply = RcBlock::new(move |ok: Bool, err: *mut NSError| {
             let _ = &keep_alive;
+            let result = if ok.as_bool() {
+                SystemAuth::Verified
+            } else {
+                // SAFETY: LocalAuthentication passes either null or a valid NSError.
+                outcome(unsafe { err.as_ref() }.map(|e| e.code()))
+            };
             if let Some(done) = done.lock().ok().and_then(|mut d| d.take()) {
-                done(if ok.as_bool() {
-                    SystemAuth::Verified
-                } else {
-                    SystemAuth::Failed
-                });
+                done(result);
             }
         });
         unsafe {
