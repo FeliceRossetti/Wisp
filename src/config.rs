@@ -13,6 +13,10 @@ pub struct Config {
     /// Blur chat names, previews and messages until hovered, and hide
     /// notification contents.
     pub privacy_blur: bool,
+    /// Hide everything behind a lock screen on start and when away.
+    pub app_lock: bool,
+    /// Lock after the window has been unfocused or hidden this long (0 = never).
+    pub lock_after_minutes: u32,
     /// Accent color used by the theme (any CSS color).
     pub accent: String,
     /// Hide to the tray instead of quitting when the window is closed.
@@ -27,6 +31,8 @@ pub struct Config {
     pub zoom: f64,
     /// Override the user agent sent to WhatsApp Web (empty = platform default).
     pub user_agent: String,
+    /// Backup PIN for app lock (salted hash; the PIN itself is never stored).
+    pub pin: Option<crate::lock::PinHash>,
     pub window: WindowState,
 }
 
@@ -45,6 +51,8 @@ impl Default for Config {
         Self {
             theme_enabled: true,
             privacy_blur: false,
+            app_lock: false,
+            lock_after_minutes: 5,
             accent: "#06bcbc".into(),
             close_to_tray: true,
             start_hidden: false,
@@ -52,6 +60,7 @@ impl Default for Config {
             notification_preview: true,
             zoom: 1.0,
             user_agent: String::new(),
+            pin: None,
             window: WindowState::default(),
         }
     }
