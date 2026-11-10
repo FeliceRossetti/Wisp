@@ -50,7 +50,7 @@ Check existing issues first; a 👍 on an existing request helps us prioritize.
 
 ## Development setup
 
-1. Install [Rust](https://rustup.rs) (stable, 1.85 or newer), with `rustfmt` and `clippy`:
+1. Install [Rust](https://rustup.rs) (stable, 1.90 or newer), with `rustfmt` and `clippy`:
 
    ```bash
    rustup component add rustfmt clippy
@@ -191,18 +191,23 @@ into `main` from any branch other than `dev` or `hotfix/*` are rejected automati
 
 Releases are cut by maintainers:
 
-1. On `dev`: bump `version` in `Cargo.toml`, move the **Unreleased** notes in `CHANGELOG.md` under
-   the new version, and merge that.
+1. On `dev`: bump `version` in `Cargo.toml` (and `Cargo.lock`), move the **Unreleased** notes in
+   `CHANGELOG.md` under the new version with today's date, update the comparison links at the
+   bottom, and merge that.
 2. Open a pull request from `dev` into `main` and merge it once CI is green.
 3. Tag the merge commit on `main` and push the tag:
 
    ```bash
    git switch main && git pull
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m "Wisp 0.3.0"
+   git push origin v0.3.0
    ```
 
 4. The **Release** workflow checks that the tag is on `main` and matches `Cargo.toml`, builds the
-   Windows, macOS (universal) and Linux packages, and publishes a GitHub release with checksums.
+   Windows, macOS (universal) and Linux packages, and publishes a GitHub release whose notes are
+   that version's `CHANGELOG.md` section, with checksums. If pushing the tag doesn't start it, run
+   **Release** from the Actions tab and pick the tag.
+5. Bring `dev` up to date with `main` (`git switch dev && git merge --ff-only main && git push`)
+   so the next release starts from the released commit.
 
 Thank you for helping make Wisp better!

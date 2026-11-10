@@ -6,28 +6,32 @@ All notable changes to Wisp are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
 ### Added
 
 - Multiple accounts: up to 9 WhatsApp accounts side by side, each with its own session, color and
   unread badge. Switch with the account bar on the left, Ctrl/Cmd+1…9 or Ctrl+Tab; add, rename,
-  reorder or remove accounts from it. Notifications say which account they're for.
-
+  reorder or remove accounts from it. Notifications say which account they're for. Your existing
+  session becomes the first account. On macOS, more than one account needs macOS 14 or later.
 - App lock: hides your chats behind a lock screen on start, on demand (Ctrl/Cmd+Shift+L or the
   tray) and after a while away. Unlock with Windows Hello, Touch ID / your Mac password, or a PIN
   (stored only as a salted hash; 5 wrong tries pause entry for 30 seconds). Messages keep arriving
   while locked, and notifications stay neutral.
-
-- Windows installer: "Install Wisp.cmd" in the Windows download installs Wisp for your user
-  account with Start menu and desktop shortcuts, and an uninstall entry in Settings → Apps.
-
 - Privacy blur: chat names, previews, avatars and messages stay blurred until hovered, and
   notifications only say "New message". Toggle with Ctrl/Cmd+Shift+B or from the tray.
+- Windows installer: "Install Wisp.cmd" in the Windows download installs Wisp for your user
+  account with Start menu and desktop shortcuts, and an uninstall entry in Settings → Apps.
 
 ### Fixed
 
 - Windows notifications come from "Wisp" with its icon instead of "Windows PowerShell", and
   clicking one opens Wisp on the account the message is for.
 - Theme and privacy blur keep their current setting when a page reloads.
+
+### Changed
+
+- Building from source needs Rust 1.90 or later.
 
 ## [0.1.0] - 2026-11-08
 
@@ -48,5 +52,6 @@ First public release.
 - Windows benchmark script comparing Wisp with the Microsoft Store app.
 - Release packages: Windows zip, macOS universal app, and Linux tarball with a user installer.
 
-[Unreleased]: https://github.com/FeliceRossetti/Wisp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/FeliceRossetti/Wisp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/FeliceRossetti/Wisp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/FeliceRossetti/Wisp/releases/tag/v0.1.0

@@ -15,6 +15,32 @@ pub const RAIL_WIDTH: f64 = 64.0;
 /// Most accounts Wisp offers (each one is a full WhatsApp Web session).
 pub const MAX_ACCOUNTS: usize = 9;
 
+/// Whether this computer can keep accounts' sessions apart. macOS only has
+/// separate web data stores from macOS 14; before that every account would
+/// share one session (and removing one would call an API that doesn't exist).
+pub fn separate_sessions_supported() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        objc2_foundation::NSProcessInfo::processInfo()
+            .operatingSystemVersion()
+            .majorVersion
+            >= 14
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+
+/// How many accounts can be added on this computer.
+pub fn max_accounts() -> usize {
+    if separate_sessions_supported() {
+        MAX_ACCOUNTS
+    } else {
+        1
+    }
+}
+
 const PALETTE: [&str; 8] = [
     "#06bcbc", "#0892da", "#7c5cff", "#e8578c", "#f59e0b", "#22a06b", "#ef5350", "#64748b",
 ];
@@ -223,7 +249,8 @@ pub fn rail_script(items: &[RailItem], locked: bool, manage: bool, bar_with_one:
         "accounts": accounts,
         "locked": locked,
         "manage": manage && !locked,
-        "canAdd": items.len() < MAX_ACCOUNTS,
+        "canAdd": items.len() < max_accounts(),
+        "multiSupported": separate_sessions_supported(),
         "barWithOne": bar_with_one,
     });
     format!("window.__rail && window.__rail.render({state})")

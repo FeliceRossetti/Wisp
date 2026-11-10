@@ -27,6 +27,7 @@ In scope are problems in Wisp itself, for example:
   the wrong origin;
 - navigation escaping `web.whatsapp.com`, or links handed to the operating system unsafely;
 - downloads written outside the Downloads folder;
+- one account in Wisp being able to read another account's session or messages;
 - getting past app lock without Windows Hello, Touch ID or the PIN, or recovering the PIN from what
   Wisp stores;
 - problems in how release builds are produced or published.

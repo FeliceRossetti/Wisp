@@ -152,6 +152,7 @@
   .icon.danger:hover { color: var(--danger); }
   .confirm { flex-wrap: wrap; border-color: var(--danger); }
   .confirm span { flex: 1 1 200px; }
+  .note { margin: 14px 0 0; color: var(--muted); }
   .toggle {
     display: flex;
     align-items: center;
@@ -250,6 +251,9 @@
           el("button", { className: "icon", textContent: "↓", title: "Move down", ariaLabel: "Move " + a.name + " down", disabled: i === last, onclick: () => post({ kind: "move", id: a.id, up: false }) }),
           el("button", { className: "icon danger", textContent: "✕", title: "Remove", ariaLabel: "Remove " + a.name, disabled: state.accounts.length < 2, onclick: () => { confirming = a.id; drawManage(); } })));
       });
+      if (state.multiSupported === false) {
+        sheet.append(el("p", { className: "note", textContent: "Adding more accounts needs macOS 14 or later, which keeps each account's session separate." }));
+      }
       const keep = el("input", { type: "checkbox", checked: !!state.barWithOne });
       keep.addEventListener("change", () => post({ kind: "bar", with_one: keep.checked }));
       sheet.append(el("label", { className: "toggle" }, keep,
