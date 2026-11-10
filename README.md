@@ -80,8 +80,15 @@ Download the latest build for your platform from the
 <details>
 <summary><b>Windows</b></summary>
 
-Unzip and run `Wisp.exe`. Wisp needs the Microsoft Edge WebView2 Runtime, which ships with
-Windows 10 and 11.
+Unzip and double-click **Install Wisp.cmd**. It installs Wisp for your user account (no
+administrator rights needed) in `%LOCALAPPDATA%\Programs\Wisp`, adds it to the Start menu and the
+desktop, and starts it. Run it again to update; your settings and sessions are kept.
+
+To remove Wisp, use **Settings → Apps → Wisp → Uninstall**. Your settings and WhatsApp sessions
+stay on your computer unless you run `install.ps1 -Uninstall -Purge` from the install folder.
+
+You can also skip installing and run `Wisp.exe` straight from the folder. Wisp needs the
+Microsoft Edge WebView2 Runtime, which ships with Windows 10 and 11.
 </details>
 
 <details>

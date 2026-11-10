@@ -69,7 +69,7 @@ jobs:
           cargo build --release
           mkdir -p dist/Wisp
           cp target/release/wisp.exe dist/Wisp/Wisp.exe
-          cp README.md LICENSE dist/Wisp/
+          cp packaging/windows/install.ps1 "packaging/windows/Install Wisp.cmd" README.md LICENSE dist/Wisp/
           cd dist && 7z a "Wisp-$VERSION-${{ matrix.name }}.zip" Wisp
 
       - name: Build (macOS universal .app)
