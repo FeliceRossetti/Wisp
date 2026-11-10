@@ -80,6 +80,14 @@ Check existing issues first; a 👍 on an existing request helps us prioritize.
    Debug builds enable the webview's developer tools (right-click → Inspect), which is the easiest way
    to work on the theme or the injected script.
 
+4. To use your build like an installed app on Windows (Start menu, desktop shortcut, Settings →
+   Apps), build it and run the installer from the repository; run it again after each rebuild:
+
+   ```bash
+   cargo build --release
+   "packaging\windows\Install Wisp.cmd"
+   ```
+
 ## Project layout
 
 ```
@@ -98,7 +106,7 @@ src/
   config.rs       settings file
   icon.rs         window and tray icons (embedded from assets/)
 assets/           logo and generated icons (.png, .ico, .icns)
-packaging/        macOS Info.plist, Linux .desktop file and installer
+packaging/        Windows installer, macOS Info.plist, Linux .desktop file and installer
 bench/            Windows benchmark against the Microsoft Store app
 .github/          CI, release and repository automation
 ```

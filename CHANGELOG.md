@@ -17,6 +17,9 @@ All notable changes to Wisp are documented here. The format is based on
   (stored only as a salted hash; 5 wrong tries pause entry for 30 seconds). Messages keep arriving
   while locked, and notifications stay neutral.
 
+- Windows installer: "Install Wisp.cmd" in the Windows download installs Wisp for your user
+  account with Start menu and desktop shortcuts, and an uninstall entry in Settings → Apps.
+
 - Privacy blur: chat names, previews, avatars and messages stay blurred until hovered, and
   notifications only say "New message". Toggle with Ctrl/Cmd+Shift+B or from the tray.
 
