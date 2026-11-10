@@ -48,7 +48,10 @@ reimplement the protocol, automate your account or read your messages.
   keep arriving while it's locked, and notifications don't show who wrote or what.
 - **Your own CSS.** Drop a `user.css` next to the settings file and it's applied on every start.
 - **Tray icon** with an unread badge. Closing the window keeps Wisp running in the tray.
-- **Native notifications** for new messages, with an option to hide message previews.
+- **Native notifications** for new messages, under Wisp's own name and icon, with an option to hide
+  message previews. Clicking one opens Wisp on the account the message is for. On Windows, Wisp
+  adds a Start menu entry the first time it runs if there isn't one, because Windows only shows an
+  app's notifications once it has one.
 - **Easy on resources in the background.** When the window is minimized or in the tray, the page is
   throttled like a background browser tab and the webview trims its memory. Messages and
   notifications keep arriving.

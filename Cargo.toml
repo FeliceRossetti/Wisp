@@ -33,8 +33,10 @@ wry = "0.57.1"
 winresource = "0.1"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62", features = ["Foundation", "Security_Credentials_UI", "Win32_Foundation", "Win32_System_WinRT"] }
+tauri-winrt-notification = "0.8"
+windows = { version = "0.62", features = ["Foundation", "Security_Credentials_UI", "Win32_Foundation", "Win32_System_WinRT", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_Storage_FileSystem", "Win32_Storage_EnhancedStorage", "Win32_UI_Shell", "Win32_UI_Shell_PropertiesSystem"] }
 windows-future = "0.3"
+windows-registry = "0.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"

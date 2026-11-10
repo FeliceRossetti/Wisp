@@ -11,6 +11,7 @@ mod activity;
 mod config;
 mod icon;
 mod lock;
+mod notify;
 mod web;
 
 use accounts::{Account, RailItem, RailMsg};
@@ -43,6 +44,8 @@ enum UserEvent {
     Menu(MenuEvent),
     /// Result of a Windows Hello / Touch ID prompt.
     Auth(lock::SystemAuth),
+    /// A notification for this account was clicked.
+    NotificationClicked(String),
 }
 
 /// Ids of the tray menu entries, so menu events can be matched.
@@ -281,6 +284,9 @@ fn run() -> Result<()> {
         cfg.app_lock = false;
     }
     remove_dirs_later(accounts::orphaned_dirs(&paths.webview_data, &cfg.accounts));
+    if let Some(data_dir) = paths.webview_data.parent() {
+        notify::init(data_dir);
+    }
 
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     forward_tray_and_menu_events(event_loop.create_proxy());
@@ -435,7 +441,10 @@ fn run() -> Result<()> {
                                 body,
                                 name.filter(|_| many),
                             );
-                            notify(title, body);
+                            let p = proxy.clone();
+                            notify::show(title, body, move || {
+                                let _ = p.send_event(UserEvent::NotificationClicked(id.clone()));
+                            });
                         }
                     }
                     Ipc::Quit => quit = true,
@@ -624,6 +633,19 @@ fn run() -> Result<()> {
                 button_state: MouseButtonState::Up,
                 ..
             })) => show_window(window, &mut shown),
+
+            // Clicking a notification opens Wisp on the account it came from.
+            Event::UserEvent(UserEvent::NotificationClicked(id)) => {
+                show_window(window, &mut shown);
+                if !lock_state.locked
+                    && let Some(i) = pages.iter().position(|p| p.id == id)
+                {
+                    switch_to(&mut pages, &mut active, i, focused, &mut cfg);
+                    managing = false;
+                    layout_dirty = true;
+                    rail_dirty = true;
+                }
+            }
 
             Event::UserEvent(UserEvent::Auth(result)) => {
                 lock_state.finish_system_auth(result);
@@ -991,20 +1013,6 @@ fn notification_content(
     } else {
         (title, String::new())
     }
-}
-
-fn notify(title: String, body: String) {
-    // Some platforms block while the notification is delivered; keep the UI responsive.
-    std::thread::spawn(move || {
-        let mut n = notify_rust::Notification::new();
-        n.summary(&title).appname(APP_NAME);
-        if !body.is_empty() {
-            n.body(&body);
-        }
-        if let Err(e) = n.show() {
-            eprintln!("notification failed: {e}");
-        }
-    });
 }
 
 fn open_external(url: &str) {

@@ -22,6 +22,8 @@ All notable changes to Wisp are documented here. The format is based on
 
 ### Fixed
 
+- Windows notifications come from "Wisp" with its icon instead of "Windows PowerShell", and
+  clicking one opens Wisp on the account the message is for.
 - Theme and privacy blur keep their current setting when a page reloads.
 
 ## [0.1.0] - 2026-11-08
