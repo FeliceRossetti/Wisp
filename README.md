@@ -40,6 +40,9 @@ reimplement the protocol, automate your account or read your messages.
 - **Privacy blur.** Blurs chat names, message previews, avatars and messages until you hover over
   them, and hides who wrote and what they wrote from notifications. Handy in public, at work or
   when sharing your screen. Toggle it with <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>.
+- **Multiple accounts.** Use up to 9 WhatsApp accounts side by side, each with its own session and
+  unread badge. Switch with one click or <kbd>Ctrl/Cmd</kbd>+<kbd>1</kbd>…<kbd>9</kbd>; accounts in
+  the background keep receiving messages and notifications.
 - **App lock.** Keeps your chats behind a lock screen when Wisp starts and after you've been away
   for a while. Unlock with Windows Hello, Touch ID (or your Mac password), or a Wisp PIN. Messages
   keep arriving while it's locked, and notifications don't show who wrote or what.
@@ -125,12 +128,28 @@ like WhatsApp Web.
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> | Toggle privacy blur |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | Lock Wisp (when app lock is on) |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Zoom in / out / reset |
+| <kbd>Ctrl/Cmd</kbd>+<kbd>1</kbd>…<kbd>9</kbd> | Switch to account 1–9 |
+| <kbd>Ctrl</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> | Next / previous account |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>R</kbd> or <kbd>F5</kbd> | Reload |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>W</kbd> | Hide to the tray |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Q</kbd> | Quit |
 
-The tray menu also lets you toggle the theme, privacy blur, app lock and notifications, lock Wisp,
-reload, or quit.
+The tray menu also lets you add an account, toggle the theme, privacy blur, app lock and
+notifications, lock Wisp, reload, or quit.
+
+### Multiple accounts
+
+The slim account bar on the left shows each account with its initials, color and unread count.
+Click **+** there (or **Add account** in the tray menu) and scan the QR code with the other phone.
+Click an account to switch to it. Right-click it, or click **⚙**, to rename, reorder or remove
+accounts. Removing an account signs it out of Wisp and deletes its session from this computer.
+
+With a single account you can hide the bar: untick **Show the account bar when there's only one
+account** under **⚙**. It always shows once you have two.
+
+Each account runs in its own webview with its own data folder, so sessions never mix. Accounts you
+aren't looking at rest in the background like a minimized window. Theme, privacy blur, app lock
+and zoom apply to all accounts. On macOS, separate sessions need macOS 14 or later.
 
 ### App lock
 
@@ -162,6 +181,7 @@ theme_enabled = true
 privacy_blur = false        # blur chats until hovered; hide notification contents
 app_lock = false            # turn on from the tray, which also asks for a PIN
 lock_after_minutes = 5      # lock after this long away; 0 = only on start or by hand
+account_bar = true          # show the account bar even with a single account
 accent = "#06bcbc"          # any CSS color
 close_to_tray = true
 start_hidden = false
