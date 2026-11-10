@@ -31,8 +31,14 @@ pub struct Config {
     pub zoom: f64,
     /// Override the user agent sent to WhatsApp Web (empty = platform default).
     pub user_agent: String,
+    /// Show the account bar even when there's only one account.
+    pub account_bar: bool,
+    /// The account shown when Wisp starts.
+    pub active_account: String,
     /// Backup PIN for app lock (salted hash; the PIN itself is never stored).
     pub pin: Option<crate::lock::PinHash>,
+    /// WhatsApp accounts, in rail order.
+    pub accounts: Vec<crate::accounts::Account>,
     pub window: WindowState,
 }
 
@@ -60,7 +66,10 @@ impl Default for Config {
             notification_preview: true,
             zoom: 1.0,
             user_agent: String::new(),
+            account_bar: true,
+            active_account: String::new(),
             pin: None,
+            accounts: Vec::new(),
             window: WindowState::default(),
         }
     }

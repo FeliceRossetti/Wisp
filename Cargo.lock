@@ -3123,6 +3123,7 @@ dependencies = [
  "block2",
  "directories",
  "getrandom",
+ "gtk",
  "notify-rust",
  "objc2",
  "objc2-foundation",

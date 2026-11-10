@@ -57,6 +57,14 @@ pub enum Ipc {
     },
     /// The user backed out of turning app lock on.
     CancelSetup,
+    /// Show account number `to` (1-based; Ctrl/Cmd+1..9).
+    Switch {
+        to: usize,
+    },
+    /// Show the next or previous account (Ctrl+Tab / Ctrl+Shift+Tab).
+    Cycle {
+        forward: bool,
+    },
 }
 
 impl std::fmt::Debug for Ipc {
@@ -97,6 +105,8 @@ impl Ipc {
             Ipc::Pin { .. } => "pin",
             Ipc::SetPin { .. } => "setpin",
             Ipc::CancelSetup => "cancelsetup",
+            Ipc::Switch { .. } => "switch",
+            Ipc::Cycle { .. } => "cycle",
         }
     }
 }
@@ -125,7 +135,7 @@ pub fn init_script(c: &PageConfig) -> String {
         "appLock": c.locked,
         "lockSystem": c.lock_system,
         "lockCss": LOCK_CSS,
-        "logo": format!("data:image/png;base64,{}", base64(LOGO_PNG)),
+        "logo": logo_data_url(),
     });
     INJECT_JS.replace("__WISP_CONFIG__", &cfg.to_string())
 }
@@ -140,6 +150,27 @@ pub fn lock_script(locked: bool, setup: bool, busy: bool, message: &str, system:
         "system": system,
     });
     format!("window.__wisp && window.__wisp.setLock({state})")
+}
+
+/// The Wisp logo as a data URL, for the lock screen and the account rail.
+pub fn logo_data_url() -> String {
+    format!("data:image/png;base64,{}", base64(LOGO_PNG))
+}
+
+/// The accent color if it's a plain CSS color (hex, a name or rgb()/hsl()),
+/// otherwise the default teal. Keeps a hand-edited config from breaking out
+/// of the stylesheet it's placed into.
+pub fn css_color(color: &str) -> String {
+    let c = color.trim();
+    let plain = !c.is_empty()
+        && c.len() <= 40
+        && c.chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || "#(),.% ".contains(ch));
+    if plain {
+        c.to_string()
+    } else {
+        "#06bcbc".to_string()
+    }
 }
 
 fn base64(bytes: &[u8]) -> String {
@@ -240,6 +271,15 @@ mod tests {
     }
 
     #[test]
+    fn accent_colors_are_sanitized() {
+        assert_eq!(css_color("#22c55e"), "#22c55e");
+        assert_eq!(css_color("rgb(10, 20, 30)"), "rgb(10, 20, 30)");
+        assert_eq!(css_color("teal"), "teal");
+        assert_eq!(css_color("red;}</style><script>"), "#06bcbc");
+        assert_eq!(css_color(""), "#06bcbc");
+    }
+
+    #[test]
     fn base64_matches_reference() {
         assert_eq!(base64(b""), "");
         assert_eq!(base64(b"f"), "Zg==");
@@ -256,6 +296,14 @@ mod tests {
             Some(Ipc::Pin { pin: "1234".into() })
         );
         assert_eq!(Ipc::parse(r#"{"kind":"cancelsetup"}"#), Some(Ipc::CancelSetup));
+        assert_eq!(
+            Ipc::parse(r#"{"kind":"switch","to":2}"#),
+            Some(Ipc::Switch { to: 2 })
+        );
+        assert_eq!(
+            Ipc::parse(r#"{"kind":"cycle","forward":false}"#),
+            Some(Ipc::Cycle { forward: false })
+        );
         let debug = format!("{:?}", Ipc::Pin { pin: "1234".into() });
         assert!(!debug.contains("1234"), "PINs never show up in debug output");
         let js = lock_script(true, false, false, "Wrong PIN", "Windows Hello");

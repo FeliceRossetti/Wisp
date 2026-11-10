@@ -221,7 +221,9 @@
         return;
       }
       let handled = true;
-      if (mod && e.shiftKey && key === "l") post({ kind: "lock" });
+      if (mod && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) post({ kind: "switch", to: Number(e.key) });
+      else if (e.ctrlKey && !e.altKey && e.key === "Tab") post({ kind: "cycle", forward: !e.shiftKey });
+      else if (mod && e.shiftKey && key === "l") post({ kind: "lock" });
       else if (mod && !e.shiftKey && key === "q") post({ kind: "quit" });
       else if (mod && !e.shiftKey && key === "w") post({ kind: "hide" });
       else if ((mod && !e.shiftKey && key === "r") || e.key === "F5") location.reload();

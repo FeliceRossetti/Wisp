@@ -84,7 +84,8 @@ Check existing issues first; a 👍 on an existing request helps us prioritize.
 
 ```
 src/
-  main.rs         window, webview, tray, menus and the event loop
+  main.rs         window, account pages, tray, menus and the event loop
+  accounts.rs     accounts: settings, data folders, layout, the account bar's messages
   activity.rs     background throttling and memory trimming
   lock.rs         app lock state, PIN hashing, Windows Hello / Touch ID
   web.rs          URL policy, page <-> app messages, builds the injected script
@@ -92,6 +93,7 @@ src/
   web/theme.css   the built-in modern theme
   web/privacy.css privacy blur rules
   web/lock.css    lock screen
+  web/rail.html   account bar and the manage-accounts screen
   config.rs       settings file
   icon.rs         window and tray icons (embedded from assets/)
 assets/           logo and generated icons (.png, .ico, .icns)
