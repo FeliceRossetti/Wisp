@@ -801,7 +801,7 @@ fn run() -> Result<()> {
             m.app_lock.set_enabled(!lock_state.locked);
             m.lock_now.set_enabled(cfg.app_lock && !lock_state.locked);
             m.add_account
-                .set_enabled(!lock_state.locked && pages.len() < accounts::MAX_ACCOUNTS);
+                .set_enabled(!lock_state.locked && pages.len() < accounts::max_accounts());
         }
 
         if quit {
@@ -834,7 +834,7 @@ fn add_account(
     focused: bool,
     paths: &Paths,
 ) {
-    if pages.len() >= accounts::MAX_ACCOUNTS {
+    if pages.len() >= accounts::max_accounts() {
         return;
     }
     let account = accounts::new_account(&cfg.accounts);
@@ -876,7 +876,7 @@ fn remove_account(
     // Sign the account out of Wisp for good: delete its session.
     remove_dirs_later(vec![accounts::data_dir(&paths.webview_data, id)]);
     #[cfg(target_os = "macos")]
-    {
+    if accounts::separate_sessions_supported() {
         use wry::WebViewExtDarwin;
         WebView::remove_data_store(&accounts::store_id(id), |_| {});
     }
@@ -923,7 +923,7 @@ fn forward_tray_and_menu_events(proxy: EventLoopProxy<UserEvent>) {
 fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
     let m = TrayMenu {
         show: MenuItem::new(format!("Show {APP_NAME}"), true, None),
-        add_account: MenuItem::new("Add account", cfg.accounts.len() < accounts::MAX_ACCOUNTS, None),
+        add_account: MenuItem::new("Add account", cfg.accounts.len() < accounts::max_accounts(), None),
         theme: CheckMenuItem::new("Modern theme", true, cfg.theme_enabled, None),
         privacy: CheckMenuItem::new("Privacy blur", true, cfg.privacy_blur, None),
         app_lock: CheckMenuItem::new("App lock", true, cfg.app_lock, None),
