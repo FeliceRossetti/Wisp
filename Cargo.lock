@@ -2977,6 +2977,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows-registry"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02752bf7fbdcce7f2a27a742f798510f3e5ad88dbe84871e5168e2120c3d5720"
+dependencies = [
+ "windows-link",
+ "windows-result",
+ "windows-strings",
+]
+
+[[package]]
 name = "windows-result"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3135,11 +3146,13 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "tao",
+ "tauri-winrt-notification",
  "toml 1.2.1+spec-1.1.0",
  "tray-icon",
  "url",
  "windows",
  "windows-future",
+ "windows-registry",
  "winresource",
  "wry",
 ]

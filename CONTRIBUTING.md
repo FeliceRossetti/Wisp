@@ -95,6 +95,7 @@ src/
   main.rs         window, account pages, tray, menus and the event loop
   accounts.rs     accounts: settings, data folders, layout, the account bar's messages
   activity.rs     background throttling and memory trimming
+  notify.rs       desktop notifications and Wisp's Windows app identity
   lock.rs         app lock state, PIN hashing, Windows Hello / Touch ID
   web.rs          URL policy, page <-> app messages, builds the injected script
   web/inject.js   notification bridge, shortcuts, theme loader, lock screen
