@@ -9,7 +9,9 @@
 
 use std::path::Path;
 
-/// Wisp's app identity, the same as the macOS bundle id.
+/// Wisp's app identity, the same as the macOS bundle id. Linux notification
+/// servers go by the app name instead, so it isn't used there.
+#[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
 pub const APP_ID: &str = "io.github.felicerossetti.wisp";
 
 /// Run once at startup, before any window opens. `data_dir` is Wisp's local
