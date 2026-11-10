@@ -24,12 +24,13 @@ jobs:
         with:
           fetch-depth: 0
       - id: v
-        name: Tag must be on main and match Cargo.toml
+        name: Tag must be on main and match Cargo.toml and CHANGELOG.md
         run: |
           [ "$GITHUB_REF_TYPE" = "tag" ] || { echo "::error::Run this workflow on a release tag, not a branch"; exit 1; }
           TAG="${GITHUB_REF_NAME#v}"
           CRATE=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
           [ "$TAG" = "$CRATE" ] || { echo "::error::Tag v$TAG does not match Cargo.toml version $CRATE"; exit 1; }
+          grep -q "^## \[$TAG\] - " CHANGELOG.md || { echo "::error::CHANGELOG.md has no dated section for $TAG"; exit 1; }
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::Release tags must point at a commit on main"; exit 1; }
           echo "version=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -69,7 +70,7 @@ jobs:
           cargo build --release
           mkdir -p dist/Wisp
           cp target/release/wisp.exe dist/Wisp/Wisp.exe
-          cp README.md LICENSE dist/Wisp/
+          cp packaging/windows/install.ps1 "packaging/windows/Install Wisp.cmd" README.md LICENSE dist/Wisp/
           cd dist && 7z a "Wisp-$VERSION-${{ matrix.name }}.zip" Wisp
 
       - name: Build (macOS universal .app)
@@ -114,10 +115,25 @@ jobs:
         with:
           path: out
           merge-multiple: true
+      - name: Release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          # This version's section, without its heading and up to the next version.
+          # Blank lines inside the section are kept; those at either end are dropped.
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found && NF == 0 { if (started) blank++; next }
+            found { while (blank > 0) { print ""; blank-- } print; started = 1 }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || { echo "::error::No notes for $VERSION in CHANGELOG.md"; exit 1; }
+          printf '\n---\n\nInstall steps for each platform are in the [README](https://github.com/%s#install). `SHA256SUMS.txt` lists a checksum for every file.\n' "$GITHUB_REPOSITORY" >> notes.md
+          cat notes.md
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd out
           sha256sum * > SHA256SUMS.txt
-          gh release create "$GITHUB_REF_NAME" * --title "Wisp $GITHUB_REF_NAME" --generate-notes
+          gh release create "$GITHUB_REF_NAME" * --title "Wisp $GITHUB_REF_NAME" --notes-file ../notes.md --verify-tag

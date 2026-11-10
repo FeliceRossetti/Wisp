@@ -10,6 +10,13 @@ use std::path::PathBuf;
 pub struct Config {
     /// Apply the bundled modern theme on top of WhatsApp Web.
     pub theme_enabled: bool,
+    /// Blur chat names, previews and messages until hovered, and hide
+    /// notification contents.
+    pub privacy_blur: bool,
+    /// Hide everything behind a lock screen on start and when away.
+    pub app_lock: bool,
+    /// Lock after the window has been unfocused or hidden this long (0 = never).
+    pub lock_after_minutes: u32,
     /// Accent color used by the theme (any CSS color).
     pub accent: String,
     /// Hide to the tray instead of quitting when the window is closed.
@@ -24,6 +31,14 @@ pub struct Config {
     pub zoom: f64,
     /// Override the user agent sent to WhatsApp Web (empty = platform default).
     pub user_agent: String,
+    /// Show the account bar even when there's only one account.
+    pub account_bar: bool,
+    /// The account shown when Wisp starts.
+    pub active_account: String,
+    /// Backup PIN for app lock (salted hash; the PIN itself is never stored).
+    pub pin: Option<crate::lock::PinHash>,
+    /// WhatsApp accounts, in rail order.
+    pub accounts: Vec<crate::accounts::Account>,
     pub window: WindowState,
 }
 
@@ -41,6 +56,9 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             theme_enabled: true,
+            privacy_blur: false,
+            app_lock: false,
+            lock_after_minutes: 5,
             accent: "#06bcbc".into(),
             close_to_tray: true,
             start_hidden: false,
@@ -48,6 +66,10 @@ impl Default for Config {
             notification_preview: true,
             zoom: 1.0,
             user_agent: String::new(),
+            account_bar: true,
+            active_account: String::new(),
+            pin: None,
+            accounts: Vec::new(),
             window: WindowState::default(),
         }
     }

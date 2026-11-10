@@ -50,7 +50,7 @@ Check existing issues first; a 👍 on an existing request helps us prioritize.
 
 ## Development setup
 
-1. Install [Rust](https://rustup.rs) (stable, 1.85 or newer), with `rustfmt` and `clippy`:
+1. Install [Rust](https://rustup.rs) (stable, 1.90 or newer), with `rustfmt` and `clippy`:
 
    ```bash
    rustup component add rustfmt clippy
@@ -80,19 +80,33 @@ Check existing issues first; a 👍 on an existing request helps us prioritize.
    Debug builds enable the webview's developer tools (right-click → Inspect), which is the easiest way
    to work on the theme or the injected script.
 
+4. To use your build like an installed app on Windows (Start menu, desktop shortcut, Settings →
+   Apps), build it and run the installer from the repository; run it again after each rebuild:
+
+   ```bash
+   cargo build --release
+   "packaging\windows\Install Wisp.cmd"
+   ```
+
 ## Project layout
 
 ```
 src/
-  main.rs         window, webview, tray, menus and the event loop
+  main.rs         window, account pages, tray, menus and the event loop
+  accounts.rs     accounts: settings, data folders, layout, the account bar's messages
   activity.rs     background throttling and memory trimming
+  notify.rs       desktop notifications and Wisp's Windows app identity
+  lock.rs         app lock state, PIN hashing, Windows Hello / Touch ID
   web.rs          URL policy, page <-> app messages, builds the injected script
-  web/inject.js   notification bridge, keyboard shortcuts, theme loader
+  web/inject.js   notification bridge, shortcuts, theme loader, lock screen
   web/theme.css   the built-in modern theme
+  web/privacy.css privacy blur rules
+  web/lock.css    lock screen
+  web/rail.html   account bar and the manage-accounts screen
   config.rs       settings file
   icon.rs         window and tray icons (embedded from assets/)
 assets/           logo and generated icons (.png, .ico, .icns)
-packaging/        macOS Info.plist, Linux .desktop file and installer
+packaging/        Windows installer, macOS Info.plist, Linux .desktop file and installer
 bench/            Windows benchmark against the Microsoft Store app
 .github/          CI, release and repository automation
 ```
@@ -177,18 +191,23 @@ into `main` from any branch other than `dev` or `hotfix/*` are rejected automati
 
 Releases are cut by maintainers:
 
-1. On `dev`: bump `version` in `Cargo.toml`, move the **Unreleased** notes in `CHANGELOG.md` under
-   the new version, and merge that.
+1. On `dev`: bump `version` in `Cargo.toml` (and `Cargo.lock`), move the **Unreleased** notes in
+   `CHANGELOG.md` under the new version with today's date, update the comparison links at the
+   bottom, and merge that.
 2. Open a pull request from `dev` into `main` and merge it once CI is green.
 3. Tag the merge commit on `main` and push the tag:
 
    ```bash
    git switch main && git pull
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag -a v0.3.0 -m "Wisp 0.3.0"
+   git push origin v0.3.0
    ```
 
 4. The **Release** workflow checks that the tag is on `main` and matches `Cargo.toml`, builds the
-   Windows, macOS (universal) and Linux packages, and publishes a GitHub release with checksums.
+   Windows, macOS (universal) and Linux packages, and publishes a GitHub release whose notes are
+   that version's `CHANGELOG.md` section, with checksums. If pushing the tag doesn't start it, run
+   **Release** from the Actions tab and pick the tag.
+5. Bring `dev` up to date with `main` (`git switch dev && git merge --ff-only main && git push`)
+   so the next release starts from the released commit.
 
 Thank you for helping make Wisp better!

@@ -1,0 +1,134 @@
+/*
+ * App lock screen. While <html> has wisp-locked (or wisp-lock-setup), the
+ * WhatsApp page is hidden and can't take focus; only this overlay shows. The
+ * overlay lives outside <body>, so hiding the page never hides the lock.
+ */
+
+html.wisp-locked body,
+html.wisp-lock-setup body {
+  visibility: hidden !important;
+}
+
+#wisp-lock {
+  --bg: #f5f7f9;
+  --card: #ffffff;
+  --text: #111b21;
+  --muted: #54656f;
+  --line: #d1d7db;
+  --accent: var(--wisp-accent, #06bcbc);
+  --error: #d93025;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Cantarell", "Ubuntu", "Noto Sans", system-ui, sans-serif;
+  visibility: visible;
+}
+
+@media (prefers-color-scheme: dark) {
+  #wisp-lock {
+    --bg: #0b141a;
+    --card: #111b21;
+    --text: #e9edef;
+    --muted: #8696a0;
+    --line: #2a3942;
+    --error: #f28b82;
+  }
+}
+
+html.wisp-locked #wisp-lock,
+html.wisp-lock-setup #wisp-lock {
+  display: flex;
+}
+
+#wisp-lock .card {
+  width: min(360px, 100%);
+  padding: 32px 28px 28px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--card);
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+#wisp-lock img {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 12px;
+}
+
+#wisp-lock h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+#wisp-lock p {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+#wisp-lock form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#wisp-lock input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 18px;
+  letter-spacing: 0.3em;
+  text-align: center;
+}
+
+#wisp-lock input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+#wisp-lock button {
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#wisp-lock button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+#wisp-lock button.link {
+  padding: 6px;
+  background: none;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+#wisp-lock button.link:hover {
+  color: var(--text);
+}
+
+#wisp-lock .message {
+  min-height: 1.45em;
+  margin: 4px 0 0;
+  color: var(--error);
+  font-size: 14px;
+}

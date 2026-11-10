@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Accounts</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --panel: #ffffff;
+    --text: #111b21;
+    --muted: #54656f;
+    --line: #d1d7db;
+    --hover: rgba(0, 0, 0, 0.06);
+    --accent: __ACCENT__;
+    --badge: #ef4444;
+    --danger: #d93025;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b141a;
+      --panel: #111b21;
+      --text: #e9edef;
+      --muted: #8696a0;
+      --line: #2a3942;
+      --hover: rgba(255, 255, 255, 0.07);
+      --danger: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+      "Cantarell", "Ubuntu", "Noto Sans", system-ui, sans-serif;
+    user-select: none;
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- The rail ---- */
+  #rail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    height: 100%;
+    padding: 12px 0;
+    border-right: 1px solid var(--line);
+  }
+  .avatar {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+    transition: border-radius 120ms ease, transform 120ms ease;
+  }
+  .avatar:hover { border-radius: 14px; }
+  .avatar.active { border-radius: 14px; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border: 2px solid var(--bg);
+    border-radius: 9px;
+    background: var(--badge);
+    color: #fff;
+    font-size: 11px;
+    line-height: 14px;
+    text-align: center;
+  }
+  .spacer { flex: 1; }
+  .tool {
+    width: 40px;
+    height: 40px;
+    border: 1px dashed var(--line);
+    border-radius: 50%;
+    background: none;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+  }
+  .tool:hover { background: var(--hover); color: var(--text); }
+  .tool.plain { border-style: solid; border-color: transparent; font-size: 18px; }
+  .locked-logo { width: 36px; height: 36px; opacity: 0.85; }
+
+  /* ---- Manage accounts ---- */
+  #manage {
+    display: flex;
+    justify-content: center;
+    height: 100%;
+    padding: 40px 24px;
+    overflow-y: auto;
+    user-select: text;
+  }
+  .sheet { width: min(520px, 100%); }
+  .sheet h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+  .sheet > p { margin: 0 0 24px; color: var(--muted); }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--panel);
+    margin-bottom: 10px;
+  }
+  .row .dot {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    display: grid;
+    place-items: center;
+  }
+  .row input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+  }
+  .row input:hover, .row input:focus { border-color: var(--line); }
+  .icon {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--muted);
+  }
+  .icon:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+  .icon:disabled { opacity: 0.3; cursor: default; }
+  .icon.danger:hover { color: var(--danger); }
+  .confirm { flex-wrap: wrap; border-color: var(--danger); }
+  .confirm span { flex: 1 1 200px; }
+  .note { margin: 14px 0 0; color: var(--muted); }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .button {
+    padding: 9px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel);
+  }
+  .button.primary { border-color: transparent; background: var(--accent); color: #fff; font-weight: 600; }
+  .button.danger { border-color: transparent; background: var(--danger); color: #fff; font-weight: 600; }
+  .button:disabled { opacity: 0.5; cursor: default; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<nav id="rail" aria-label="Accounts"></nav>
+<main id="manage" hidden></main>
+<script>
+  (() => {
+    const LOGO = "__LOGO__";
+    const post = (msg) => window.ipc.postMessage(JSON.stringify(msg));
+    let state = { accounts: [], locked: false, manage: false, canAdd: true };
+    let confirming = null;
+
+    const el = (tag, props = {}, ...kids) => {
+      const e = document.createElement(tag);
+      for (const [k, v] of Object.entries(props)) {
+        if (k === "style") e.style.cssText = v;
+        else if (k.startsWith("aria") || k === "role" || k === "title") e.setAttribute(k.replace(/^aria([A-Z])/, (_, c) => "aria-" + c.toLowerCase()), v);
+        else e[k] = v;
+      }
+      e.append(...kids);
+      return e;
+    };
+
+    const drawRail = () => {
+      const rail = document.getElementById("rail");
+      rail.replaceChildren();
+      if (state.locked) {
+        // Nothing about the accounts shows while Wisp is locked.
+        rail.append(el("img", { className: "locked-logo", src: LOGO, alt: "" }));
+        return;
+      }
+      state.accounts.forEach((a, i) => {
+        const b = el("button", {
+          className: "avatar" + (a.active ? " active" : ""),
+          style: "background:" + a.color,
+          title: a.name + (i < 9 ? "  (Ctrl+" + (i + 1) + ")" : ""),
+          ariaLabel: a.name + (a.unread ? ", " + a.unread + " unread" : ""),
+          ariaCurrent: a.active ? "true" : "false",
+          textContent: a.initials,
+          onclick: () => post({ kind: "select", id: a.id }),
+          oncontextmenu: (e) => { e.preventDefault(); post({ kind: "manage", open: true }); },
+        });
+        if (a.unread) b.append(el("span", { className: "badge", textContent: a.unread > 99 ? "99+" : String(a.unread) }));
+        rail.append(b);
+      });
+      if (state.canAdd) {
+        rail.append(el("button", { className: "tool", title: "Add account", ariaLabel: "Add account", textContent: "+", onclick: () => post({ kind: "add" }) }));
+      }
+      rail.append(el("div", { className: "spacer" }));
+      rail.append(el("button", { className: "tool plain", title: "Manage accounts", ariaLabel: "Manage accounts", textContent: "⚙", onclick: () => post({ kind: "manage", open: true }) }));
+    };
+
+    const drawManage = () => {
+      const root = document.getElementById("manage");
+      root.replaceChildren();
+      const sheet = el("div", { className: "sheet" },
+        el("h1", { textContent: "Accounts" }),
+        el("p", { textContent: "Each account has its own WhatsApp session. Removing one signs it out of Wisp on this computer." }));
+      const last = state.accounts.length - 1;
+      state.accounts.forEach((a, i) => {
+        if (confirming === a.id) {
+          sheet.append(el("div", { className: "row confirm", role: "alert" },
+            el("span", { textContent: "Remove “" + a.name + "”? You'll need to scan the QR code again to add it back." }),
+            el("button", { className: "button danger", textContent: "Remove", onclick: () => { confirming = null; post({ kind: "remove", id: a.id }); } }),
+            el("button", { className: "button", textContent: "Cancel", onclick: () => { confirming = null; drawManage(); } })));
+          return;
+        }
+        const input = el("input", { value: a.name, maxLength: 32, ariaLabel: "Account name" });
+        const save = () => { if (input.value.trim() && input.value !== a.name) post({ kind: "rename", id: a.id, name: input.value }); };
+        input.addEventListener("change", save);
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+        sheet.append(el("div", { className: "row" },
+          el("div", { className: "dot", style: "background:" + a.color, textContent: a.initials, ariaHidden: "true" }),
+          input,
+          el("button", { className: "icon", textContent: "↑", title: "Move up", ariaLabel: "Move " + a.name + " up", disabled: i === 0, onclick: () => post({ kind: "move", id: a.id, up: true }) }),
+          el("button", { className: "icon", textContent: "↓", title: "Move down", ariaLabel: "Move " + a.name + " down", disabled: i === last, onclick: () => post({ kind: "move", id: a.id, up: false }) }),
+          el("button", { className: "icon danger", textContent: "✕", title: "Remove", ariaLabel: "Remove " + a.name, disabled: state.accounts.length < 2, onclick: () => { confirming = a.id; drawManage(); } })));
+      });
+      if (state.multiSupported === false) {
+        sheet.append(el("p", { className: "note", textContent: "Adding more accounts needs macOS 14 or later, which keeps each account's session separate." }));
+      }
+      const keep = el("input", { type: "checkbox", checked: !!state.barWithOne });
+      keep.addEventListener("change", () => post({ kind: "bar", with_one: keep.checked }));
+      sheet.append(el("label", { className: "toggle" }, keep,
+        el("span", { textContent: "Show the account bar when there's only one account" })));
+      sheet.append(el("div", { className: "actions" },
+        el("button", { className: "button", textContent: "Add account", disabled: !state.canAdd, onclick: () => post({ kind: "add" }) }),
+        el("div", { className: "spacer" }),
+        el("button", { className: "button primary", textContent: "Done", onclick: () => post({ kind: "manage", open: false }) })));
+      root.append(sheet);
+    };
+
+    window.__rail = {
+      render(next) {
+        state = next;
+        if (!state.manage) confirming = null;
+        document.getElementById("rail").hidden = state.manage;
+        document.getElementById("manage").hidden = !state.manage;
+        if (state.manage) drawManage(); else drawRail();
+      },
+    };
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && state.manage) post({ kind: "manage", open: false });
+    });
+    post({ kind: "ready" });
+  })();
+</script>
+</body>
+</html>
