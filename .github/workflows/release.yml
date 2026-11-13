@@ -42,7 +42,10 @@ jobs:
         include:
           - os: windows-latest
             name: windows-x86_64
-          - os: macos-latest
+          # The universal app is built for both Apple Silicon and Intel on one
+          # machine, so either kind of runner works. The Intel runners are used
+          # because the Apple Silicon ones can stay queued for a long time.
+          - os: macos-15-intel
             name: macos-universal
           - os: ubuntu-22.04
             name: linux-x86_64
