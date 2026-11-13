@@ -6,6 +6,8 @@ All notable changes to Wisp are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-13
+
 ### Added
 
 - Settings: one screen for accounts, the theme, accent color and zoom, privacy blur and
@@ -82,6 +84,7 @@ First public release.
 - Windows benchmark script comparing Wisp with the Microsoft Store app.
 - Release packages: Windows zip, macOS universal app, and Linux tarball with a user installer.
 
-[Unreleased]: https://github.com/FeliceRossetti/Wisp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/FeliceRossetti/Wisp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/FeliceRossetti/Wisp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/FeliceRossetti/Wisp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/FeliceRossetti/Wisp/releases/tag/v0.1.0

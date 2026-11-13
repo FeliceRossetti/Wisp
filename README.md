@@ -73,13 +73,13 @@ reimplement the protocol, automate your account or read your messages.
 
 Compared on Windows 11 with the Microsoft Store WhatsApp app (which also runs WhatsApp Web in
 WebView2), with the same account, using [`bench/bench.ps1`](bench/bench.ps1). Sizes are for Wisp
-0.2.0; timing, CPU and memory were measured with Wisp 0.1.0 on one machine, so treat them as
+0.3.0; timing, CPU and memory were measured with Wisp 0.1.0 on one machine, so treat them as
 indicative:
 
 | | Wisp | Store app |
 |---|---|---|
 | Download (Windows zip) | **0.8 MB** | — |
-| Installed size | **1.5 MB** | 331 MB |
+| Installed size | **1.6 MB** | 331 MB |
 | Window visible after launch | **0.3 s** | 1.7 s |
 | CPU time in the first 45 s | **13.8 s** | 17.0 s |
 | RAM in use, window in background | **~0.2–0.5 GB** | ~0.9 GB |
