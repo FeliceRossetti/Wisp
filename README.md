@@ -35,8 +35,10 @@ reimplement the protocol, automate your account or read your messages.
 
 - **Small and fast.** About 1 MB to download (2 MB for the universal macOS app). The window shows
   in a fraction of a second.
-- **Modern theme.** System fonts, slim scrollbars, rounded chat rows, pill-shaped search and
-  composer, softer message bubbles and an accent color you choose. Toggle it any time with
+- **Calm, monochrome theme.** WhatsApp's greens, gradients and wallpaper give way to graphite (or
+  soft white in light mode), with one accent, the logo's teal, kept for unread badges, the active
+  account and focus. Flat chat background, rounded rows and bubbles, pill-shaped search and composer,
+  slim scrollbars and quick, smooth transitions. Toggle it any time with
   <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>.
 - **Privacy blur.** Blurs chat names, message previews, avatars and messages until you hover over
   them, and hides who wrote and what they wrote from notifications. Handy in public, at work or
@@ -205,7 +207,7 @@ privacy_blur = false        # blur chats until hovered; hide notification conten
 app_lock = false            # turn on from the tray, which also asks for a PIN
 lock_after_minutes = 5      # lock after this long away; 0 = only on start or by hand
 account_bar = true          # show the account bar even with a single account
-accent = "#06bcbc"          # any CSS color
+accent = "#06bcbc"          # the one accent color (unread, active account, focus); any CSS color
 close_to_tray = true
 start_hidden = false
 notifications = true

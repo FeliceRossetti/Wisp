@@ -4,6 +4,8 @@
   if (window.__wisp) return;
   const CFG = __WISP_CONFIG__;
 
+  __WISP_MONO__
+
   const post = (msg) => {
     try {
       window.ipc.postMessage(JSON.stringify(msg));
@@ -77,6 +79,47 @@
     el.textContent = css;
   };
 
+  // The mono recolor (mono.js) is rebuilt whenever WhatsApp adds styles.
+  let monoTimer = 0;
+  const buildMono = () => {
+    monoTimer = 0;
+    if (themeOn) addStyle("wisp-mono", wispMono.build(CFG.accent));
+    else document.getElementById("wisp-mono")?.remove();
+  };
+  const scheduleMono = () => {
+    if (!monoTimer) monoTimer = setTimeout(buildMono, 150);
+  };
+  const insertRule = CSSStyleSheet.prototype.insertRule;
+  CSSStyleSheet.prototype.insertRule = function (...args) {
+    const result = insertRule.apply(this, args);
+    if (themeOn && !(this.ownerNode && this.ownerNode.id && this.ownerNode.id.startsWith("wisp-"))) scheduleMono();
+    return result;
+  };
+  const watchStyles = () => {
+    new MutationObserver((changes) => {
+      for (const change of changes) {
+        for (const node of change.addedNodes) {
+          if (node.id && node.id.startsWith("wisp-")) continue;
+          if (node.tagName === "STYLE") scheduleMono();
+          else if (node.tagName === "LINK" && /stylesheet/i.test(node.rel)) node.addEventListener("load", scheduleMono, { once: true });
+        }
+      }
+    }).observe(document.head || document.documentElement, { childList: true, subtree: true });
+  };
+
+  // Mirror WhatsApp's own dark/light choice for Wisp's screens (lock, account bar).
+  let lastDark = null;
+  const syncAppearance = () => {
+    if (!document.body) return;
+    const dark = document.body.classList.contains("dark");
+    document.documentElement.classList.toggle("wisp-dark", dark);
+    document.documentElement.classList.toggle("wisp-light", !dark);
+    if (dark !== lastDark) {
+      lastDark = dark;
+      post({ kind: "appearance", dark });
+    }
+  };
+
   const applyTheme = () => {
     const root = document.documentElement;
     if (!root) return;
@@ -85,6 +128,7 @@
     root.classList.toggle("wisp-private", privateOn);
     if (themeOn) addStyle("wisp-theme", CFG.css);
     else document.getElementById("wisp-theme")?.remove();
+    scheduleMono();
     if (!document.getElementById("wisp-privacy")) addStyle("wisp-privacy", CFG.privacyCss);
     if (CFG.userCss) {
       // Keep user.css last so it always wins over the built-in theme.
@@ -200,7 +244,17 @@
   );
 
   if (document.documentElement) applyTheme();
-  document.addEventListener("DOMContentLoaded", applyTheme, { once: true });
+  document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+      applyTheme();
+      watchStyles();
+      syncAppearance();
+      new MutationObserver(syncAppearance).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+    },
+    { once: true },
+  );
+  window.addEventListener("load", scheduleMono, { once: true });
 
   // ---- Shortcuts -------------------------------------------------------------
   window.addEventListener(
