@@ -95,14 +95,17 @@ src/
   main.rs         window, account pages, tray, menus and the event loop
   accounts.rs     accounts: settings, data folders, layout, the account bar's messages
   activity.rs     background throttling and memory trimming
+  autostart.rs    opening Wisp at sign-in (Run key, launch agent, XDG autostart)
+  settings.rs     the Settings screen: what can change, and what it's shown
   notify.rs       desktop notifications and Wisp's Windows app identity
   lock.rs         app lock state, PIN hashing, Windows Hello / Touch ID
   web.rs          URL policy, page <-> app messages, builds the injected script
   web/inject.js   notification bridge, shortcuts, theme loader, lock screen
-  web/theme.css   the built-in modern theme
+  web/theme.css   the built-in theme: shapes and motion
+  web/mono.js     recolors WhatsApp's styles to the mono palette
   web/privacy.css privacy blur rules
   web/lock.css    lock screen
-  web/rail.html   account bar and the manage-accounts screen
+  web/rail.html   account bar and the Settings screen
   config.rs       settings file
   icon.rs         window and tray icons (embedded from assets/)
 assets/           logo and generated icons (.png, .ico, .icns)
@@ -139,6 +142,8 @@ WhatsApp Web's class names are generated and change often, so in `src/web/theme.
 
 - Target ids, roles, ARIA labels and `data-*` attributes, not class names.
 - Scope every rule under `html.wisp-themed` so the theme can be switched off instantly.
+- Colors come from `src/web/mono.js`, which recolors WhatsApp's own styles by value. Prefer adjusting
+  its rules over hard-coding colors in `theme.css`, so the theme keeps working when WhatsApp changes.
 - Prefer subtle changes that can't break the layout. WhatsApp's chat list is virtualized, so avoid
   vertical margins or heights on list rows.
 - Check both WhatsApp's light and dark mode, and include before/after screenshots (with personal data

@@ -2,30 +2,70 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Accounts</title>
+<title>Wisp</title>
 <style>
+  /* Registered so colors can animate: switching dark/light or the accent eases instead of snapping. */
+  @property --accent { syntax: "<color>"; inherits: true; initial-value: #06bcbc; }
+  @property --bg { syntax: "<color>"; inherits: true; initial-value: #f4f4f5; }
+  @property --panel { syntax: "<color>"; inherits: true; initial-value: #ffffff; }
+  @property --text { syntax: "<color>"; inherits: true; initial-value: #111113; }
+  @property --muted { syntax: "<color>"; inherits: true; initial-value: #6b6b72; }
+  @property --line { syntax: "<color>"; inherits: true; initial-value: #e4e4e7; }
+  @property --chip { syntax: "<color>"; inherits: true; initial-value: #e8e8eb; }
+  @property --ink { syntax: "<color>"; inherits: true; initial-value: #111113; }
+
   :root {
-    --bg: #f0f2f5;
+    --bg: #f4f4f5;
     --panel: #ffffff;
-    --text: #111b21;
-    --muted: #54656f;
-    --line: #d1d7db;
-    --hover: rgba(0, 0, 0, 0.06);
+    --text: #111113;
+    --muted: #6b6b72;
+    --line: #e4e4e7;
+    --hover: rgba(0, 0, 0, 0.05);
+    --chip: #e8e8eb;
+    --chip-text: #3f3f46;
+    --ink: #111113;
+    --on-ink: #ffffff;
     --accent: __ACCENT__;
-    --badge: #ef4444;
-    --danger: #d93025;
-    color-scheme: light dark;
+    --on-accent: #061414;
+    --danger: #c81e1e;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Things leaving speed up as they go, instead of stopping short. */
+    --exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+    color-scheme: light;
+    transition: --accent 320ms var(--ease), --bg 240ms var(--ease), --panel 240ms var(--ease),
+      --text 240ms var(--ease), --muted 240ms var(--ease), --line 240ms var(--ease),
+      --chip 240ms var(--ease), --ink 240ms var(--ease);
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b141a;
-      --panel: #111b21;
-      --text: #e9edef;
-      --muted: #8696a0;
-      --line: #2a3942;
-      --hover: rgba(255, 255, 255, 0.07);
+    :root:not([data-mode="light"]) {
+      --bg: #0f0f11;
+      --panel: #17171a;
+      --text: #ececee;
+      --muted: #8b8b92;
+      --line: #26262a;
+      --hover: rgba(255, 255, 255, 0.06);
+      --chip: #232327;
+      --chip-text: #c9c9cf;
+      --ink: #ececee;
+      --on-ink: #111113;
       --danger: #f28b82;
+      color-scheme: dark;
     }
+  }
+  :root[data-mode="dark"] {
+    --bg: #0f0f11;
+    --panel: #17171a;
+    --text: #ececee;
+    --muted: #8b8b92;
+    --line: #26262a;
+    --hover: rgba(255, 255, 255, 0.06);
+    --chip: #232327;
+    --chip-text: #c9c9cf;
+    --ink: #ececee;
+    --on-ink: #111113;
+    --danger: #f28b82;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -34,36 +74,48 @@
     color: var(--text);
     font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text",
       "Cantarell", "Ubuntu", "Noto Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
     user-select: none;
     overflow: hidden;
   }
+  /* Where the webview can be see-through, only the bar and Settings paint, so
+     Settings can fade in over the chat and back out again. */
+  :root[data-see-through] body { background: transparent; }
   button { font: inherit; color: inherit; cursor: pointer; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  /* ---- The rail ---- */
+  /* ---- The account bar ---- */
   #rail {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 10px;
+    width: 100%;
     height: 100%;
     padding: 12px 0;
     border-right: 1px solid var(--line);
+    background: var(--bg);
   }
+  :root[data-see-through] #rail { width: 64px; }
   .avatar {
     position: relative;
+    flex: none;
     width: 40px;
     height: 40px;
     border: 0;
     border-radius: 50%;
-    color: #fff;
+    background: var(--chip);
+    color: var(--chip-text);
     font-weight: 600;
-    font-size: 14px;
-    letter-spacing: 0.02em;
-    transition: border-radius 120ms ease, transform 120ms ease;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    transition: border-radius 220ms var(--ease), background-color 180ms var(--ease), box-shadow 260ms var(--ease),
+      color 180ms var(--ease), transform 160ms var(--ease);
   }
-  .avatar:hover { border-radius: 14px; }
-  .avatar.active { border-radius: 14px; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .avatar:hover { border-radius: 14px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); }
+  .avatar:active { transform: scale(0.94); }
+  .avatar.active { border-radius: 14px; background: var(--chip); color: var(--text); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .avatar.new { animation: pop-in 320ms var(--spring) both; }
   .badge {
     position: absolute;
     top: -4px;
@@ -73,14 +125,20 @@
     padding: 0 5px;
     border: 2px solid var(--bg);
     border-radius: 9px;
-    background: var(--badge);
-    color: #fff;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
     font-size: 11px;
     line-height: 14px;
     text-align: center;
+    pointer-events: none;
   }
+  .badge.new { animation: pop-in 300ms var(--spring) both; }
+  .badge.bump { animation: bump 260ms var(--ease); }
+  .badge.gone { animation: pop-out 160ms var(--exit) both; }
   .spacer { flex: 1; }
   .tool {
+    flex: none;
     width: 40px;
     height: 40px;
     border: 1px dashed var(--line);
@@ -89,55 +147,138 @@
     color: var(--muted);
     font-size: 20px;
     line-height: 1;
+    transition: background-color 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease),
+      border-radius 220ms var(--ease), transform 160ms var(--ease);
   }
-  .tool:hover { background: var(--hover); color: var(--text); }
+  .tool:hover { background: var(--hover); color: var(--text); border-color: var(--muted); border-radius: 14px; }
+  .tool:active { transform: scale(0.94); }
   .tool.plain { border-style: solid; border-color: transparent; font-size: 18px; }
-  .locked-logo { width: 36px; height: 36px; opacity: 0.85; }
+  .tool.plain span { display: inline-block; transition: transform 420ms var(--ease); }
+  .tool.plain:hover span { transform: rotate(60deg); }
+  .locked-logo { width: 36px; height: 36px; opacity: 0.85; animation: fade-in 260ms var(--ease) both; }
 
-  /* ---- Manage accounts ---- */
-  #manage {
-    display: flex;
-    justify-content: center;
-    height: 100%;
-    padding: 40px 24px;
-    overflow-y: auto;
-    user-select: text;
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(0.6); }
+    to { opacity: 1; transform: none; }
   }
-  .sheet { width: min(520px, 100%); }
-  .sheet h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
-  .sheet > p { margin: 0 0 24px; color: var(--muted); }
-  .row {
+  @keyframes pop-out {
+    to { opacity: 0; transform: scale(0.6); }
+  }
+  @keyframes bump {
+    40% { transform: scale(1.18); }
+  }
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes fade-out { to { opacity: 0; } }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes sink {
+    to { opacity: 0; transform: translateY(8px) scale(0.995); }
+  }
+
+  /* ---- Settings ---- */
+  #manage {
+    position: fixed;
+    inset: 0;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    outline: none;
+  }
+  /* The backdrop. It covers the chat once Settings is open. */
+  #manage::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+  }
+  #manage.entering::before { animation: fade-in 240ms var(--ease) both; }
+  #manage.entering .sheet > * { animation: rise 420ms var(--ease) both; animation-delay: calc(40ms + var(--i, 0) * 18ms); }
+  #manage.leaving { pointer-events: none; }
+  #manage.leaving::before { animation: fade-out 210ms var(--exit) 40ms both; }
+  #manage.leaving .sheet { animation: sink 180ms var(--exit) both; }
+  :root:not([data-see-through]) #manage::before { animation: none !important; }
+  .sheet { position: relative; width: min(600px, 100%); margin: 0 auto; padding: 0 24px 48px; outline: none; }
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    background: var(--panel);
-    margin-bottom: 10px;
+    gap: 12px;
+    margin: 0 -24px;
+    padding: 28px 24px 14px;
+    background: var(--bg);
+    box-shadow: 0 1px 0 transparent;
+    transition: box-shadow 200ms var(--ease);
   }
-  .row .dot {
+  .top.scrolled { box-shadow: 0 1px 0 var(--line); }
+  .top h1 { flex: 1; margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  h2 {
+    margin: 26px 0 8px 4px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .group {
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 56px;
+    padding: 10px 16px;
+  }
+  .item + .item { border-top: 1px solid var(--line); }
+  .item.stack { flex-wrap: wrap; }
+  .item .text { flex: 1; min-width: 0; }
+  .item .label { display: block; transition: opacity 220ms var(--ease); }
+  .item .hint { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; transition: opacity 220ms var(--ease); }
+  .item.off .label, .item.off .hint { opacity: 0.5; }
+  .item.appear { animation: rise 260ms var(--ease) both; }
+  .footnote { padding: 10px 4px 0; min-height: 0; }
+  kbd {
+    padding: 0 5px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font: 11.5px/1.5 inherit;
+    font-family: inherit;
+  }
+
+  /* Accounts */
+  .dot {
     flex: none;
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    color: #fff;
+    background: var(--chip);
+    color: var(--chip-text);
     font-weight: 600;
     font-size: 12px;
     display: grid;
     place-items: center;
   }
-  .row input {
+  .dot.active { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--accent); }
+  .name {
     flex: 1;
     min-width: 0;
-    padding: 8px 10px;
+    margin-left: -8px;
+    padding: 7px 8px;
     border: 1px solid transparent;
     border-radius: 8px;
     background: transparent;
     color: var(--text);
     font: inherit;
+    transition: border-color 160ms var(--ease), background-color 160ms var(--ease);
   }
-  .row input:hover, .row input:focus { border-color: var(--line); }
+  .name:hover { border-color: var(--line); }
+  .name:focus { border-color: var(--line); background: var(--bg); }
   .icon {
     flex: none;
     width: 32px;
@@ -146,33 +287,152 @@
     border-radius: 8px;
     background: none;
     color: var(--muted);
+    transition: background-color 160ms var(--ease), color 160ms var(--ease), opacity 160ms var(--ease), transform 140ms var(--ease);
   }
   .icon:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+  .icon:active:not(:disabled) { transform: scale(0.9); }
   .icon:disabled { opacity: 0.3; cursor: default; }
-  .icon.danger:hover { color: var(--danger); }
-  .confirm { flex-wrap: wrap; border-color: var(--danger); }
-  .confirm span { flex: 1 1 200px; }
-  .note { margin: 14px 0 0; color: var(--muted); }
-  .toggle {
+  .icon.danger:hover:not(:disabled) { color: var(--danger); }
+  .confirm {
+    flex-wrap: wrap;
+    background: var(--hover);
+    transition: background-color 300ms var(--ease), box-shadow 300ms var(--ease);
+  }
+  .confirm .confirm-text { flex: 1 1 220px; }
+  /* Held: the row warms toward red while the button fills. */
+  .confirm.armed { background: color-mix(in srgb, var(--danger) 14%, transparent); box-shadow: inset 3px 0 0 var(--danger); }
+  .confirm.gone { pointer-events: none; }
+  .hold {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    min-width: 148px;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .hold .fill {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgba(255, 255, 255, 0.32);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+  .hold .hold-label { position: relative; }
+  .button.hold:active:not(:disabled) { transform: scale(0.98); }
+  .note { margin: 10px 4px 0; color: var(--muted); font-size: 12.5px; }
+
+  /* Controls */
+  .switch {
+    appearance: none;
+    flex: none;
+    position: relative;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    border-radius: 11px;
+    background: var(--chip);
+    box-shadow: inset 0 0 0 1px var(--line);
+    cursor: pointer;
+    transition: background-color 220ms var(--ease), box-shadow 220ms var(--ease), opacity 220ms var(--ease);
+  }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--muted);
+    transition: transform 260ms var(--ease), width 160ms var(--ease), background-color 220ms var(--ease);
+  }
+  .switch:checked { background: var(--ink); box-shadow: inset 0 0 0 1px transparent; }
+  .switch:checked::after { transform: translateX(16px); background: var(--on-ink); }
+  /* A pressed thumb stretches toward where it's going. */
+  .switch:active:not(:disabled)::after { width: 20px; }
+  .switch:checked:active:not(:disabled)::after { transform: translateX(12px); }
+  .switch:disabled { opacity: 0.4; cursor: default; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .swatch {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--swatch);
+    box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px transparent;
+    transition: transform 180ms var(--ease), box-shadow 220ms var(--ease);
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch:active { transform: scale(0.92); }
+  .swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--text); }
+  .swatch.custom {
+    overflow: hidden;
+    background: conic-gradient(from 90deg, #f43f5e, #f59e0b, #22c55e, #06bcbc, #3b82f6, #8b5cf6, #f43f5e);
+  }
+  .swatch.custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .stepper {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 16px;
-    color: var(--muted);
-    cursor: pointer;
+    border: 1px solid var(--line);
+    border-radius: 10px;
   }
-  .toggle input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
-  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .stepper button {
+    width: 32px;
+    height: 30px;
+    border: 0;
+    border-radius: 9px;
+    background: none;
+    color: var(--muted);
+    font-size: 16px;
+    transition: color 160ms var(--ease), background-color 160ms var(--ease), opacity 160ms var(--ease), transform 140ms var(--ease);
+  }
+  .stepper button:hover:not(:disabled) { color: var(--text); background: var(--hover); }
+  .stepper button:active:not(:disabled) { transform: scale(0.88); }
+  .stepper button:disabled { opacity: 0.3; cursor: default; }
+  .stepper output { display: inline-block; min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+  .stepper output.tick { animation: tick 200ms var(--ease); }
+  @keyframes tick { from { opacity: 0.35; transform: translateY(2px); } }
+  .reset { transition: opacity 200ms var(--ease), transform 200ms var(--ease), background-color 160ms var(--ease) !important; }
+  .reset.away { opacity: 0; transform: scale(0.96); pointer-events: none; }
+  select {
+    padding: 6px 30px 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%238b8b92' stroke-width='1.5'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 11px center;
+    color: var(--text);
+    font: inherit;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 160ms var(--ease), opacity 220ms var(--ease);
+  }
+  select:hover:not(:disabled) { border-color: var(--muted); }
+  select:disabled { opacity: 0.4; cursor: default; }
   .button {
-    padding: 9px 16px;
+    flex: none;
+    padding: 7px 14px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--panel);
+    transition: background-color 160ms var(--ease), border-color 160ms var(--ease), opacity 160ms var(--ease), transform 140ms var(--ease);
   }
-  .button.primary { border-color: transparent; background: var(--accent); color: #fff; font-weight: 600; }
+  .button:hover:not(:disabled) { background: var(--hover); }
+  .button:active:not(:disabled) { transform: scale(0.97); }
+  .button.primary { border-color: transparent; background: var(--ink); color: var(--on-ink); font-weight: 600; }
+  .button.primary:hover:not(:disabled) { background: var(--ink); opacity: 0.88; }
   .button.danger { border-color: transparent; background: var(--danger); color: #fff; font-weight: 600; }
+  .button.danger:hover:not(:disabled) { background: var(--danger); opacity: 0.88; }
   .button:disabled { opacity: 0.5; cursor: default; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .about { display: flex; align-items: center; gap: 12px; }
+  .about img { width: 32px; height: 32px; }
   [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    :root { transition: none; }
+    *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+  }
 </style>
 </head>
 <body>
@@ -181,102 +441,580 @@
 <script>
   (() => {
     const LOGO = "__LOGO__";
+    const SEE_THROUGH = __SEE_THROUGH__;
+    const MOD = /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
+    const EASE = "cubic-bezier(0.2, 0, 0, 1)";
+    const root = document.documentElement;
+    root.toggleAttribute("data-see-through", SEE_THROUGH);
+    const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
     const post = (msg) => window.ipc.postMessage(JSON.stringify(msg));
-    let state = { accounts: [], locked: false, manage: false, canAdd: true };
+    let state = { accounts: [], locked: false, manage: false, canAdd: true, settings: null };
     let confirming = null;
 
     const el = (tag, props = {}, ...kids) => {
       const e = document.createElement(tag);
       for (const [k, v] of Object.entries(props)) {
+        if (v === undefined) continue;
         if (k === "style") e.style.cssText = v;
-        else if (k.startsWith("aria") || k === "role" || k === "title") e.setAttribute(k.replace(/^aria([A-Z])/, (_, c) => "aria-" + c.toLowerCase()), v);
+        else if (k === "key") e.dataset.key = v;
+        else if (k.startsWith("aria") || k === "role" || k === "title" || k === "for") e.setAttribute(k.replace(/^aria([A-Z])/, (_, c) => "aria-" + c.toLowerCase()), v);
         else e[k] = v;
       }
-      e.append(...kids);
+      e.append(...kids.filter((k) => k != null && k !== false));
       return e;
     };
+    // Drop a one-shot animation class once it has played, so moving or
+    // redrawing the element doesn't replay it.
+    const once = (node, cls) => {
+      node.classList.add(cls);
+      node.addEventListener("animationend", () => node.classList.remove(cls), { once: true });
+    };
+
+    // ---- The account bar ----
+    // Avatars are kept and updated in place, so the active ring and badges animate.
+    const avatars = new Map();
+    let railMode = "";
+    let railDrawn = false;
+    const addButton = el("button", { className: "tool", title: "Add account", ariaLabel: "Add account", textContent: "+", onclick: () => post({ kind: "add" }) });
+    const spacer = el("div", { className: "spacer" });
+    const gear = el("button", {
+      className: "tool plain", title: "Settings  (" + MOD + "+,)", ariaLabel: "Settings",
+      onclick: () => post({ kind: "manage", open: true }),
+    }, el("span", { textContent: "⚙", ariaHidden: "true" }));
+
+    const selectLocally = (id) => avatars.forEach((v, key) => v.button.classList.toggle("active", key === id));
 
     const drawRail = () => {
       const rail = document.getElementById("rail");
-      rail.replaceChildren();
       if (state.locked) {
         // Nothing about the accounts shows while Wisp is locked.
-        rail.append(el("img", { className: "locked-logo", src: LOGO, alt: "" }));
+        if (railMode !== "locked") {
+          rail.replaceChildren(el("img", { className: "locked-logo", src: LOGO, alt: "" }));
+          avatars.clear();
+          railMode = "locked";
+        }
         return;
       }
-      state.accounts.forEach((a, i) => {
-        const b = el("button", {
-          className: "avatar" + (a.active ? " active" : ""),
-          style: "background:" + a.color,
-          title: a.name + (i < 9 ? "  (Ctrl+" + (i + 1) + ")" : ""),
-          ariaLabel: a.name + (a.unread ? ", " + a.unread + " unread" : ""),
-          ariaCurrent: a.active ? "true" : "false",
-          textContent: a.initials,
-          onclick: () => post({ kind: "select", id: a.id }),
-          oncontextmenu: (e) => { e.preventDefault(); post({ kind: "manage", open: true }); },
-        });
-        if (a.unread) b.append(el("span", { className: "badge", textContent: a.unread > 99 ? "99+" : String(a.unread) }));
-        rail.append(b);
-      });
-      if (state.canAdd) {
-        rail.append(el("button", { className: "tool", title: "Add account", ariaLabel: "Add account", textContent: "+", onclick: () => post({ kind: "add" }) }));
+      if (railMode !== "accounts") {
+        rail.replaceChildren();
+        avatars.clear();
+        railMode = "accounts";
       }
-      rail.append(el("div", { className: "spacer" }));
-      rail.append(el("button", { className: "tool plain", title: "Manage accounts", ariaLabel: "Manage accounts", textContent: "⚙", onclick: () => post({ kind: "manage", open: true }) }));
+      const seen = new Set();
+      const order = [];
+      state.accounts.forEach((a, i) => {
+        seen.add(a.id);
+        let v = avatars.get(a.id);
+        if (!v) {
+          const initials = el("span");
+          const button = el("button", { className: "avatar" }, initials);
+          button.addEventListener("click", () => { selectLocally(a.id); post({ kind: "select", id: a.id }); });
+          button.addEventListener("contextmenu", (e) => { e.preventDefault(); post({ kind: "manage", open: true }); });
+          if (railDrawn && !calm()) once(button, "new");
+          v = { button, initials, badge: null };
+          avatars.set(a.id, v);
+        }
+        const b = v.button;
+        b.classList.toggle("active", !!a.active);
+        b.title = a.name + (i < 9 ? "  (" + MOD + "+" + (i + 1) + ")" : "");
+        b.setAttribute("aria-label", a.name + (a.unread ? ", " + a.unread + " unread" : ""));
+        b.setAttribute("aria-current", a.active ? "true" : "false");
+        v.initials.textContent = a.initials;
+        const count = a.unread ? (a.unread > 99 ? "99+" : String(a.unread)) : "";
+        if (count) {
+          if (!v.badge || v.badge.classList.contains("gone")) {
+            v.badge?.remove();
+            v.badge = el("span", { className: "badge", textContent: count });
+            if (railDrawn) once(v.badge, "new");
+            b.append(v.badge);
+          } else if (v.badge.textContent !== count) {
+            v.badge.textContent = count;
+            v.badge.classList.remove("bump");
+            void v.badge.offsetWidth; // restart the bump
+            once(v.badge, "bump");
+          }
+        } else if (v.badge && !v.badge.classList.contains("gone")) {
+          const badge = v.badge;
+          if (calm()) { badge.remove(); v.badge = null; }
+          else {
+            badge.classList.add("gone");
+            badge.addEventListener("animationend", () => { badge.remove(); if (v.badge === badge) v.badge = null; }, { once: true });
+          }
+        }
+        order.push(b);
+      });
+      for (const [id] of avatars) if (!seen.has(id)) avatars.delete(id);
+      if (state.canAdd) order.push(addButton);
+      order.push(spacer, gear);
+      // Only touch the order when it changed: moving nodes cuts their transitions short.
+      const kids = rail.children;
+      if (kids.length !== order.length || order.some((n, i) => kids[i] !== n)) rail.replaceChildren(...order);
+      railDrawn = true;
     };
 
-    const drawManage = () => {
-      const root = document.getElementById("manage");
-      root.replaceChildren();
-      const sheet = el("div", { className: "sheet" },
-        el("h1", { textContent: "Accounts" }),
-        el("p", { textContent: "Each account has its own WhatsApp session. Removing one signs it out of Wisp on this computer." }));
+    // ---- Settings ----
+    const manage = document.getElementById("manage");
+    // While a control is animating to its new state, updates wait so the
+    // redraw doesn't cut it short. Controls show their new state right away.
+    let holdUntil = 0;
+    const hold = (ms = 320) => { holdUntil = Math.max(holdUntil, performance.now() + ms); };
+    const set = (name, value) => { hold(); post({ kind: "set", setting: { name, value } }); };
+
+    let uid = 0;
+    // A row with a label, an optional hint and a control on the right.
+    const item = (label, hint, control, { off = false, stack = false, row } = {}) => {
+      const id = control && control.id ? control.id : null;
+      return el("div", { className: "item" + (off ? " off" : "") + (stack ? " stack" : ""), key: row ? "row-" + row : undefined },
+        el("div", { className: "text" },
+          id ? el("label", { className: "label", for: id, textContent: label }) : el("span", { className: "label", textContent: label }),
+          hint ? el("span", { className: "hint" }, ...[].concat(hint)) : null),
+        control);
+    };
+    const toggle = (key, checked, onchange, disabled = false) => {
+      const input = el("input", { type: "checkbox", className: "switch", role: "switch", id: "s" + ++uid, key, checked: !!checked, disabled });
+      input.addEventListener("change", () => onchange(input.checked));
+      return input;
+    };
+    const keys = (...parts) => parts.flatMap((p, i) => (i ? ["+", el("kbd", { textContent: p })] : [el("kbd", { textContent: p })]));
+    const shortcut = (text, ...parts) => [text + " ", ...keys(...parts)];
+    const q = (key) => manage.querySelector('[data-key="' + CSS.escape(key) + '"]');
+    // Show a dependent row as on or off right away.
+    const dim = (row, off, control) => {
+      q("row-" + row)?.classList.toggle("off", off);
+      const c = q(control);
+      if (c) c.disabled = off;
+    };
+    // Fold a row away before the redraw removes it.
+    const fold = (row) => {
+      const node = q("row-" + row);
+      if (!node || calm() || !node.animate) return;
+      node.style.overflow = "hidden";
+      node.animate(
+        [{ height: node.offsetHeight + "px", opacity: 1 }, { height: "0px", minHeight: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 }],
+        { duration: 240, easing: EASE, fill: "forwards" });
+    };
+
+    // ---- Removing an account: press and hold ----
+    // The button fills while held and Settings shakes harder as it goes; letting
+    // go early drains it. Updates wait while it's held so nothing redraws under it.
+    const HOLD_MS = 2000;
+    let holding = false;
+    let cancelHold = null;
+    const holdToRemove = (button, fill, label, row, id) => {
+      let raf = 0;
+      let start = 0;
+      let progress = 0;
+      let done = false;
+      let pressed = false;
+      const sheet = () => manage.querySelector(".sheet");
+      const shakeTo = (x, y) => { const s = sheet(); if (s) s.style.translate = x.toFixed(2) + "px " + y.toFixed(2) + "px"; };
+      const frame = (t) => {
+        if (!start) start = t;
+        progress = Math.min(1, (t - start) / HOLD_MS);
+        fill.style.transform = "scaleX(" + progress + ")";
+        if (!calm()) {
+          // A rumble that builds: small at first, strong near the end.
+          const amp = 0.4 + progress * progress * 5;
+          shakeTo(Math.sin(t / 17) * amp + (Math.random() - 0.5) * amp * 0.6, Math.cos(t / 23) * amp * 0.35);
+        }
+        if (progress >= 1) finish();
+        else raf = requestAnimationFrame(frame);
+      };
+      const press = () => {
+        if (done || pressed) return;
+        pressed = true;
+        holding = true;
+        cancelHold = () => release(true);
+        start = 0;
+        fill.getAnimations().forEach((an) => an.cancel());
+        row.classList.add("armed");
+        label.textContent = "Keep holding…";
+        raf = requestAnimationFrame(frame);
+      };
+      const release = (quiet = false) => {
+        if (done || !pressed) return;
+        pressed = false;
+        cancelAnimationFrame(raf);
+        row.classList.remove("armed");
+        label.textContent = "Hold to remove";
+        // Drain the fill back and settle the sheet.
+        const from = progress;
+        progress = 0;
+        fill.style.transform = "scaleX(0)";
+        if (!quiet && from > 0 && fill.animate) {
+          fill.animate([{ transform: "scaleX(" + from + ")" }, { transform: "scaleX(0)" }], { duration: 160 + 220 * from, easing: EASE });
+        }
+        const s = sheet();
+        if (s) {
+          s.style.translate = "";
+          if (!calm() && from > 0.02 && s.animate) s.animate([{ translate: "1.5px 0" }, { translate: "0 0" }], { duration: 160, easing: EASE });
+        }
+        holding = false;
+        cancelHold = null;
+        hold(300);
+        flushLater();
+      };
+      const finish = () => {
+        done = true;
+        pressed = false;
+        cancelAnimationFrame(raf);
+        label.textContent = "Removing…";
+        row.classList.remove("armed");
+        row.classList.add("gone");
+        const s = sheet();
+        if (s) {
+          s.style.translate = "";
+          if (!calm() && s.animate) {
+            // One last jolt as it goes.
+            s.animate(
+              [{ translate: "0 0" }, { translate: "-12px 1px" }, { translate: "10px -1px" }, { translate: "-6px 0" }, { translate: "3px 0" }, { translate: "0 0" }],
+              { duration: 420, easing: "ease-out" });
+          }
+        }
+        // Fold the row away, then remove the account. Settings stays open.
+        const send = () => {
+          confirming = null;
+          holding = false;
+          cancelHold = null;
+          post({ kind: "remove", id });
+          flushLater();
+        };
+        if (calm() || !row.animate) return send();
+        row.style.overflow = "hidden";
+        row.animate(
+          [{ height: row.offsetHeight + "px", opacity: 1 }, { height: "0px", minHeight: "0px", paddingTop: "0px", paddingBottom: "0px", opacity: 0 }],
+          { duration: 300, delay: 120, easing: EASE, fill: "forwards" }).finished.then(send, send);
+      };
+      button.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        button.focus({ preventScroll: true });
+        try { button.setPointerCapture(e.pointerId); } catch (_) {}
+        press();
+      });
+      for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) button.addEventListener(type, () => release());
+      button.addEventListener("keydown", (e) => {
+        if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); press(); }
+      });
+      button.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") release(); });
+      button.addEventListener("blur", () => release());
+      button.addEventListener("click", (e) => e.preventDefault());
+    };
+
+    const accountsSection = (s) => {
+      const group = el("div", { className: "group" });
       const last = state.accounts.length - 1;
       state.accounts.forEach((a, i) => {
         if (confirming === a.id) {
-          sheet.append(el("div", { className: "row confirm", role: "alert" },
-            el("span", { textContent: "Remove “" + a.name + "”? You'll need to scan the QR code again to add it back." }),
-            el("button", { className: "button danger", textContent: "Remove", onclick: () => { confirming = null; post({ kind: "remove", id: a.id }); } }),
-            el("button", { className: "button", textContent: "Cancel", onclick: () => { confirming = null; drawManage(); } })));
+          const label = el("span", { className: "hold-label", textContent: "Hold to remove" });
+          const fill = el("span", { className: "fill", ariaHidden: "true" });
+          const remove = el("button", {
+            className: "button danger hold", key: "confirm-remove", ariaLabel: "Hold to remove " + a.name,
+            title: "Press and hold for " + HOLD_MS / 1000 + " seconds",
+          }, fill, label);
+          const row = el("div", { className: "item confirm", role: "alert" },
+            el("span", { className: "confirm-text", textContent: "Remove “" + a.name + "”? It's signed out of Wisp on this computer, and you'll need to scan the QR code again to add it back." }),
+            remove,
+            el("button", { className: "button", key: "confirm-cancel", textContent: "Cancel", onclick: () => { confirming = null; draw(); q("remove-" + a.id)?.focus(); } }));
+          holdToRemove(remove, fill, label, row, a.id);
+          if (confirmFresh) { confirmFresh = false; once(row, "appear"); }
+          group.append(row);
           return;
         }
-        const input = el("input", { value: a.name, maxLength: 32, ariaLabel: "Account name" });
-        const save = () => { if (input.value.trim() && input.value !== a.name) post({ kind: "rename", id: a.id, name: input.value }); };
-        input.addEventListener("change", save);
-        input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
-        sheet.append(el("div", { className: "row" },
-          el("div", { className: "dot", style: "background:" + a.color, textContent: a.initials, ariaHidden: "true" }),
+        const input = el("input", { className: "name", key: "name-" + a.id, value: a.name, maxLength: 32, ariaLabel: "Name of " + a.name, spellcheck: false });
+        input.addEventListener("change", () => { if (input.value.trim() && input.value !== a.name) post({ kind: "rename", id: a.id, name: input.value }); });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") input.blur();
+          else if (e.key === "Escape") { e.stopPropagation(); input.value = a.name; input.blur(); }
+        });
+        group.append(el("div", { className: "item" },
+          el("div", { className: "dot" + (a.active ? " active" : ""), textContent: a.initials, ariaHidden: "true" }),
           input,
-          el("button", { className: "icon", textContent: "↑", title: "Move up", ariaLabel: "Move " + a.name + " up", disabled: i === 0, onclick: () => post({ kind: "move", id: a.id, up: true }) }),
-          el("button", { className: "icon", textContent: "↓", title: "Move down", ariaLabel: "Move " + a.name + " down", disabled: i === last, onclick: () => post({ kind: "move", id: a.id, up: false }) }),
-          el("button", { className: "icon danger", textContent: "✕", title: "Remove", ariaLabel: "Remove " + a.name, disabled: state.accounts.length < 2, onclick: () => { confirming = a.id; drawManage(); } })));
+          state.accounts.length > 1 ? el("button", { className: "icon", key: "up-" + a.id, textContent: "↑", title: "Move up", ariaLabel: "Move " + a.name + " up", disabled: i === 0, onclick: () => post({ kind: "move", id: a.id, up: true }) }) : null,
+          state.accounts.length > 1 ? el("button", { className: "icon", key: "down-" + a.id, textContent: "↓", title: "Move down", ariaLabel: "Move " + a.name + " down", disabled: i === last, onclick: () => post({ kind: "move", id: a.id, up: false }) }) : null,
+          el("button", {
+            className: "icon danger", key: "remove-" + a.id, textContent: "✕", title: "Remove", ariaLabel: "Remove " + a.name, disabled: state.accounts.length < 2,
+            onclick: () => { confirming = a.id; confirmFresh = true; draw(); q("confirm-cancel")?.focus(); },
+          })));
       });
-      if (state.multiSupported === false) {
-        sheet.append(el("p", { className: "note", textContent: "Adding more accounts needs macOS 14 or later, which keeps each account's session separate." }));
+      group.append(item("Show the account bar with one account", "With two or more accounts it's always shown.",
+        toggle("account_bar", s.accountBar, (on) => set("account_bar", on))));
+      return [
+        el("h2", { textContent: "Accounts" }),
+        group,
+        el("div", { className: "item footnote" },
+          el("span", { className: "text hint", textContent: "Each account has its own WhatsApp session. Removing one signs it out of Wisp on this computer." }),
+          el("button", { className: "button", key: "add", textContent: "Add account", disabled: !state.canAdd, onclick: () => leave({ kind: "add" }) })),
+        state.multiSupported === false ? el("p", { className: "note", textContent: "Adding more accounts needs macOS 14 or later, which keeps each account's session separate." }) : null,
+      ];
+    };
+
+    let zoomNow = 1;
+    const appearanceSection = (s) => {
+      const accent = String(s.accent).toLowerCase();
+      const preset = s.accents.some((a) => a.color === accent);
+      // Pick an accent: the ring and every accent color move to it right away.
+      const choose = (color, swatch) => {
+        manage.querySelectorAll(".swatch").forEach((n) => n.setAttribute("aria-checked", String(n === swatch)));
+        root.style.setProperty("--accent", color);
+      };
+      const swatches = el("div", { className: "swatches", role: "radiogroup", ariaLabel: "Accent color" },
+        ...s.accents.map((a) => {
+          const b = el("button", {
+            className: "swatch", role: "radio", key: "accent-" + a.name, title: a.name, ariaLabel: a.name,
+            ariaChecked: String(a.color === accent), style: "--swatch:" + a.color,
+          });
+          b.onclick = () => { choose(a.color, b); set("accent", a.color); };
+          return b;
+        }));
+      const picker = el("input", { type: "color", key: "accent-custom", value: /^#[0-9a-f]{6}$/.test(accent) ? accent : "#06bcbc", ariaLabel: "Custom accent color" });
+      const custom = el("span", { className: "swatch custom", role: "radio", title: "Custom", ariaChecked: String(!preset), style: preset ? "" : "background: " + accent }, picker);
+      picker.addEventListener("input", () => { hold(1000); custom.style.background = picker.value; choose(picker.value, custom); });
+      picker.addEventListener("change", () => set("accent", picker.value.toLowerCase()));
+      swatches.append(custom);
+
+      zoomNow = s.zoom;
+      const out = el("output", { textContent: Math.round(zoomNow * 100) + "%", ariaLive: "polite" });
+      const zoomOut = el("button", { key: "zoom-out", textContent: "−", ariaLabel: "Zoom out" });
+      const zoomIn = el("button", { key: "zoom-in", textContent: "+", ariaLabel: "Zoom in" });
+      const reset = el("button", { className: "button reset", key: "zoom-reset", textContent: "Reset" });
+      const showZoom = () => {
+        const pct = Math.round(zoomNow * 100);
+        if (out.textContent !== pct + "%") {
+          out.textContent = pct + "%";
+          out.classList.remove("tick");
+          void out.offsetWidth;
+          once(out, "tick");
+        }
+        zoomOut.disabled = pct <= 50;
+        zoomIn.disabled = pct >= 300;
+        reset.classList.toggle("away", pct === 100);
+        reset.tabIndex = pct === 100 ? -1 : 0;
+        reset.setAttribute("aria-hidden", String(pct === 100));
+      };
+      const zoomTo = (z) => {
+        zoomNow = Math.min(3, Math.max(0.5, Math.round(z * 20) / 20));
+        showZoom();
+        set("zoom", zoomNow);
+      };
+      zoomOut.onclick = () => zoomTo(zoomNow - 0.1);
+      zoomIn.onclick = () => zoomTo(zoomNow + 0.1);
+      reset.onclick = () => { zoomTo(1); zoomIn.focus(); };
+      showZoom();
+      out.classList.remove("tick");
+      return [
+        el("h2", { textContent: "Appearance" }),
+        el("div", { className: "group" },
+          item("Wisp theme", shortcut("Calm, single-color look with a flat background.", MOD, "Shift", "T"),
+            toggle("theme", s.theme, (on) => set("theme", on))),
+          item("Accent color", "Unread badges, the active account and focus.", swatches, { stack: true }),
+          item("Zoom", ["Also ", ...keys(MOD, "+"), " and ", ...keys(MOD, "-"), " in a chat."],
+            el("div", { className: "swatches" }, reset,
+              el("div", { className: "stepper", role: "group", ariaLabel: "Zoom" }, zoomOut, out, zoomIn)))),
+      ];
+    };
+
+    const privacySection = (s) => [
+      el("h2", { textContent: "Privacy and notifications" }),
+      el("div", { className: "group" },
+        item("Privacy blur", shortcut("Blur chats, names and photos until you point at them.", MOD, "Shift", "B"),
+          toggle("privacy_blur", s.privacyBlur, (on) => set("privacy_blur", on))),
+        item("Notifications", "Show a desktop notification for new messages.",
+          toggle("notifications", s.notifications, (on) => { dim("previews", !on, "notification_preview"); set("notifications", on); })),
+        item("Show message previews", "Include who wrote and what they said.",
+          toggle("notification_preview", s.notificationPreview, (on) => set("notification_preview", on), !s.notifications),
+          { off: !s.notifications, row: "previews" })),
+    ];
+
+    const lockAfterLabel = (m) => (m === 0 ? "Only when Wisp starts" : m === 60 ? "After 1 hour away" : m === 1 ? "After 1 minute away" : "After " + m + " minutes away");
+    const securitySection = (s) => {
+      const after = el("select", { id: "s" + ++uid, key: "lock_after", disabled: !s.appLock, ariaLabel: "Lock automatically" },
+        ...s.lockAfterChoices.map((m) => el("option", { value: String(m), textContent: lockAfterLabel(m), selected: m === s.lockAfter })));
+      after.addEventListener("change", () => set("lock_after_minutes", Number(after.value)));
+      const how = s.systemUnlock ? "Unlock with " + s.systemUnlock + " or a PIN." : "Unlock with a PIN.";
+      const lockToggle = (on) => {
+        if (on) {
+          // Choosing a PIN happens on the lock screen; Settings comes back after.
+          leave({ kind: "locksetup" }, 180);
+        } else {
+          dim("lock-after", true, "lock_after");
+          fold("pin");
+          set("app_lock", false);
+        }
+      };
+      return [
+        el("h2", { textContent: "Security" }),
+        el("div", { className: "group" },
+          item("App lock", [how + " Lock now with ", ...keys(MOD, "Shift", "L"), "."], toggle("app_lock", s.appLock, lockToggle)),
+          item("Lock automatically", "When the window isn't in use.", after, { off: !s.appLock, row: "lock-after" }),
+          s.appLock ? item("PIN", s.systemUnlock ? "Used when " + s.systemUnlock + " isn't available." : null,
+            el("button", { className: "button", key: "change_pin", textContent: "Change PIN", onclick: () => leave({ kind: "locksetup" }) }), { row: "pin" }) : null),
+      ];
+    };
+
+    const startupSection = (s) => [
+      el("h2", { textContent: "Startup and window" }),
+      el("div", { className: "group" },
+        item("Open Wisp when you sign in to " + s.system, "Starts quietly in the tray, ready for notifications.",
+          toggle("start_at_login", s.startAtLogin, (on) => set("start_at_login", on))),
+        item("Start in the tray", "Don't show the window when Wisp opens.",
+          toggle("start_hidden", s.startHidden, (on) => set("start_hidden", on))),
+        item("Keep running when closed", "Closing the window keeps Wisp in the tray.",
+          toggle("close_to_tray", s.closeToTray, (on) => set("close_to_tray", on)))),
+    ];
+
+    const link = (text, name) => el("button", { className: "button", key: "link-" + name, textContent: text, onclick: () => post({ kind: "open", link: name }) });
+    const aboutSection = (s) => [
+      el("h2", { textContent: "About" }),
+      el("div", { className: "group" },
+        el("div", { className: "item" },
+          el("div", { className: "about text" },
+            el("img", { src: LOGO, alt: "" }),
+            el("div", {},
+              el("span", { className: "label", textContent: "Wisp " + s.version }),
+              el("span", { className: "hint", textContent: "An unofficial desktop app for WhatsApp Web." })))),
+        el("div", { className: "item" },
+          el("div", { className: "links" },
+            link("What's new", "releases"),
+            link("Report a problem", "issues"),
+            link("Source code", "repo"),
+            link("License", "license")))),
+    ];
+
+    let confirmFresh = false;
+    const draw = () => {
+      const s = state.settings;
+      if (!s) { manage.replaceChildren(); return; }
+      // Keep focus, scroll and a half-typed name across updates.
+      const active = document.activeElement;
+      const focusKey = active && active.dataset ? active.dataset.key : null;
+      const typed = active && active.classList && active.classList.contains("name") ? { value: active.value, start: active.selectionStart, end: active.selectionEnd } : null;
+      const scroll = manage.scrollTop;
+      uid = 0;
+      const top = el("div", { className: "top" + (scroll > 4 ? " scrolled" : "") },
+        el("h1", { textContent: "Settings" }),
+        el("button", { className: "button primary", key: "done", textContent: "Done", onclick: () => leave({ kind: "manage", open: false }) }));
+      const parts = [top, ...accountsSection(s), ...appearanceSection(s), ...privacySection(s), ...securitySection(s), ...startupSection(s), ...aboutSection(s)]
+        .filter(Boolean);
+      // Sections rise in one after another when Settings opens.
+      parts.forEach((p, i) => p.style.setProperty("--i", String(Math.min(i, 12))));
+      manage.replaceChildren(el("div", { className: "sheet", tabIndex: -1 }, ...parts));
+      manage.scrollTop = scroll;
+      if (focusKey) {
+        const again = q(focusKey);
+        if (again && !again.disabled) {
+          again.focus({ preventScroll: true });
+          if (typed && again.classList.contains("name")) {
+            again.value = typed.value;
+            try { again.setSelectionRange(typed.start, typed.end); } catch (_) {}
+          }
+        } else {
+          manage.querySelector(".sheet")?.focus({ preventScroll: true });
+        }
       }
-      const keep = el("input", { type: "checkbox", checked: !!state.barWithOne });
-      keep.addEventListener("change", () => post({ kind: "bar", with_one: keep.checked }));
-      sheet.append(el("label", { className: "toggle" }, keep,
-        el("span", { textContent: "Show the account bar when there's only one account" })));
-      sheet.append(el("div", { className: "actions" },
-        el("button", { className: "button", textContent: "Add account", disabled: !state.canAdd, onclick: () => post({ kind: "add" }) }),
-        el("div", { className: "spacer" }),
-        el("button", { className: "button primary", textContent: "Done", onclick: () => post({ kind: "manage", open: false }) })));
-      root.append(sheet);
+    };
+    manage.addEventListener("scroll", () => manage.querySelector(".top")?.classList.toggle("scrolled", manage.scrollTop > 4), { passive: true });
+
+    // ---- Opening and closing ----
+    let shownManage = false;
+    let leaving = false;
+    let pending = null;
+    let pendingTimer = 0;
+    let enterTimer = 0;
+
+    const showRail = () => {
+      document.getElementById("rail").hidden = false;
+      manage.hidden = true;
+      drawRail();
+    };
+    // Play Settings out, then tell the app (which closes it, or opens the PIN screen).
+    const leave = (msg, delay = 0) => {
+      if (leaving) return;
+      if (calm() || !shownManage) { post(msg); return; }
+      leaving = true;
+      clearTimeout(enterTimer);
+      setTimeout(() => {
+        manage.classList.remove("entering");
+        manage.classList.add("leaving");
+        setTimeout(() => {
+          // Where the bar stays, show it before the app shrinks this view, so the
+          // switch has nothing to flash.
+          const barStays = state.accounts.length > 1 || !!(state.settings && state.settings.accountBar);
+          manage.classList.remove("leaving");
+          if (barStays) showRail(); else { manage.hidden = true; }
+          shownManage = false;
+          leaving = false;
+          // An update that waited for the animation is stale now; the app sends a fresh one.
+          clearTimeout(pendingTimer);
+          pending = null;
+          post(msg);
+        }, 250);
+      }, delay);
+    };
+
+    const apply = (next) => {
+      state = next;
+      if (!state.manage) confirming = null;
+      if (state.manage) {
+        document.getElementById("rail").hidden = true;
+        manage.hidden = false;
+        const opening = !shownManage;
+        if (opening) { manage.scrollTop = 0; confirming = null; }
+        draw();
+        if (opening) {
+          shownManage = true;
+          manage.querySelector(".sheet")?.focus({ preventScroll: true });
+          if (!calm()) {
+            manage.classList.add("entering");
+            hold(520);
+            clearTimeout(enterTimer);
+            enterTimer = setTimeout(() => manage.classList.remove("entering"), 520);
+          }
+        }
+      } else {
+        shownManage = false;
+        showRail();
+      }
     };
 
     window.__rail = {
       render(next) {
-        state = next;
-        if (!state.manage) confirming = null;
-        document.getElementById("rail").hidden = state.manage;
-        document.getElementById("manage").hidden = !state.manage;
-        if (state.manage) drawManage(); else drawRail();
+        // Colors follow at once (they animate on their own).
+        if (next.dark === true || next.dark === false) root.dataset.mode = next.dark ? "dark" : "light";
+        if (next.settings && /^#[0-9a-fA-F]{6}$/.test(next.settings.accent)) root.style.setProperty("--accent", next.settings.accent);
+        clearTimeout(pendingTimer);
+        // Locking interrupts a hold; anything else waits until it's let go.
+        if (holding && next.locked) cancelHold?.();
+        if (holding) { pending = next; return; }
+        const wait = holdUntil - performance.now();
+        if (leaving || (shownManage && next.manage && !next.locked && wait > 0)) {
+          pending = next;
+          pendingTimer = setTimeout(() => { const p = pending; pending = null; if (p) window.__rail.render(p); }, Math.max(wait, 60) + 10);
+          return;
+        }
+        pending = null;
+        apply(next);
       },
     };
 
+    // Apply an update that waited, once any hold has run out.
+    const flushLater = () => {
+      clearTimeout(pendingTimer);
+      if (!pending) return;
+      const wait = Math.max(holdUntil - performance.now(), 0);
+      pendingTimer = setTimeout(() => { const p = pending; pending = null; if (p) window.__rail.render(p); }, wait + 10);
+    };
+
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && state.manage) post({ kind: "manage", open: false });
+      if (!state.manage || !shownManage || holding) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (confirming) { const id = confirming; confirming = null; draw(); q("remove-" + id)?.focus(); }
+        else leave({ kind: "manage", open: false });
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key === ",") {
+        e.preventDefault();
+        leave({ kind: "manage", open: false });
+      }
     });
     post({ kind: "ready" });
   })();

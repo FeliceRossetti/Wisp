@@ -136,7 +136,8 @@ pub fn data_dir(default_dir: &Path, id: &str) -> PathBuf {
 }
 
 /// Session folders left behind by removed accounts (they can't always be
-/// deleted while the webview is still shutting down).
+/// deleted while the webview is still shutting down). The first account's
+/// folder only belongs to that account, so it goes too once it's removed.
 pub fn orphaned_dirs(default_dir: &Path, accounts: &[Account]) -> Vec<PathBuf> {
     let Some(parent) = default_dir.parent() else {
         return Vec::new();
@@ -144,14 +145,19 @@ pub fn orphaned_dirs(default_dir: &Path, accounts: &[Account]) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(parent) else {
         return Vec::new();
     };
-    entries
+    let mut dirs: Vec<PathBuf> = entries
         .filter_map(|e| e.ok())
         .filter_map(|e| {
             let name = e.file_name().into_string().ok()?;
             let id = name.strip_prefix("webview-")?;
             (valid_id(id) && id != DEFAULT_ID && !accounts.iter().any(|a| a.id == id)).then(|| e.path())
         })
-        .collect()
+        .collect();
+    if !accounts.is_empty() && !accounts.iter().any(|a| a.id == DEFAULT_ID) && default_dir.is_dir() {
+        dirs.push(default_dir.to_path_buf());
+    }
+    dirs.sort();
+    dirs
 }
 
 /// macOS keeps sessions apart by a 16-byte data store id.
@@ -209,9 +215,15 @@ pub enum RailMsg {
     Remove {
         id: String,
     },
-    /// Show the bar even with a single account.
-    Bar {
-        with_one: bool,
+    /// A change made in Settings.
+    Set {
+        setting: crate::settings::Setting,
+    },
+    /// Turn app lock on, or change its PIN (the PIN screen opens in the page).
+    LockSetup,
+    /// Open one of the About section's links.
+    Open {
+        link: String,
     },
 }
 
@@ -229,7 +241,13 @@ pub struct RailItem<'a> {
 }
 
 /// Script that redraws the rail.
-pub fn rail_script(items: &[RailItem], locked: bool, manage: bool, bar_with_one: bool) -> String {
+pub fn rail_script(
+    items: &[RailItem],
+    locked: bool,
+    manage: bool,
+    dark: Option<bool>,
+    settings: &serde_json::Value,
+) -> String {
     // While locked the rail draws only the logo, so don't even send the names.
     let shown = if locked { &[][..] } else { items };
     let accounts: Vec<_> = shown
@@ -251,7 +269,10 @@ pub fn rail_script(items: &[RailItem], locked: bool, manage: bool, bar_with_one:
         "manage": manage && !locked,
         "canAdd": items.len() < max_accounts(),
         "multiSupported": separate_sessions_supported(),
-        "barWithOne": bar_with_one,
+        // WhatsApp's own dark/light choice, so the bar matches it (None: follow the system).
+        "dark": dark,
+        // What the Settings screen shows; nothing while locked.
+        "settings": if locked { &serde_json::Value::Null } else { settings },
     });
     format!("window.__rail && window.__rail.render({state})")
 }
@@ -358,13 +379,19 @@ mod tests {
         ] {
             std::fs::create_dir_all(root.join(d)).unwrap();
         }
-        let keep = vec![Account {
-            id: "aa11".into(),
+        let account = |id: &str| Account {
+            id: id.into(),
             name: "A".into(),
             color: "#000".into(),
-        }];
-        let orphans = orphaned_dirs(&base, &keep);
-        assert_eq!(orphans, vec![root.join("webview-bb22")]);
+        };
+        let with_first = vec![account(DEFAULT_ID), account("aa11")];
+        assert_eq!(orphaned_dirs(&base, &with_first), vec![root.join("webview-bb22")]);
+        // The first account was removed: its folder is left over too.
+        let without_first = vec![account("aa11")];
+        assert_eq!(
+            orphaned_dirs(&base, &without_first),
+            vec![root.join("webview"), root.join("webview-bb22")]
+        );
         std::fs::remove_dir_all(&root).unwrap();
     }
 
@@ -380,8 +407,14 @@ mod tests {
         );
         assert_eq!(RailMsg::parse(r#"{"kind":"nope"}"#), None);
         assert_eq!(
-            RailMsg::parse(r#"{"kind":"bar","with_one":false}"#),
-            Some(RailMsg::Bar { with_one: false })
+            RailMsg::parse(r#"{"kind":"set","setting":{"name":"account_bar","value":false}}"#),
+            Some(RailMsg::Set {
+                setting: crate::settings::Setting::AccountBar(false)
+            })
+        );
+        assert_eq!(
+            RailMsg::parse(r#"{"kind":"locksetup"}"#),
+            Some(RailMsg::LockSetup)
         );
         let acct = |id: &str| Account {
             id: id.into(),
@@ -411,11 +444,16 @@ mod tests {
             }],
             true,
             true,
-            true,
+            Some(true),
+            &serde_json::json!({ "accent": "#06bcbc" }),
         );
         assert!(js.contains(r#""manage":false"#));
         assert!(js.contains(r#""locked":true"#));
         assert!(!js.contains("Secret"), "names aren't sent while locked");
+        assert!(
+            js.contains(r#""settings":null"#),
+            "settings aren't sent while locked"
+        );
     }
 
     #[test]

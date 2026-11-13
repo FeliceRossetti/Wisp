@@ -8,10 +8,12 @@
 
 mod accounts;
 mod activity;
+mod autostart;
 mod config;
 mod icon;
 mod lock;
 mod notify;
+mod settings;
 mod web;
 
 use accounts::{Account, RailItem, RailMsg};
@@ -31,6 +33,9 @@ use wry::{NewWindowResponse, PermissionKind, PermissionResponse, Rect, WebContex
 
 const APP_NAME: &str = "Wisp";
 const RAIL_HTML: &str = include_str!("web/rail.html");
+/// Settings fades in over WhatsApp where the webview can draw see-through over
+/// the page next to it. WebKitGTK can't, so on Linux it starts opaque.
+const RAIL_SEE_THROUGH: bool = cfg!(any(windows, target_os = "macos"));
 
 #[derive(Debug)]
 enum UserEvent {
@@ -51,6 +56,7 @@ enum UserEvent {
 /// Ids of the tray menu entries, so menu events can be matched.
 struct TrayMenu {
     show: MenuItem,
+    settings: MenuItem,
     add_account: MenuItem,
     theme: CheckMenuItem,
     privacy: CheckMenuItem,
@@ -68,6 +74,8 @@ struct Page {
     webview: WebView,
     _context: WebContext,
     unread: u32,
+    /// Whether WhatsApp shows this account in dark mode (None until it says).
+    dark: Option<bool>,
     activity: activity::Activity,
 }
 
@@ -104,6 +112,44 @@ impl Host {
         }
         #[cfg(not(target_os = "linux"))]
         Ok(Self { window })
+    }
+
+    /// Put a webview above the others. A view created later lands on top, so the
+    /// bar (and Settings, which grows out of it) is raised again after a new
+    /// account's page is created; otherwise Settings would open underneath it.
+    fn raise(&self, webview: &WebView) {
+        #[cfg(windows)]
+        {
+            use windows::Win32::UI::WindowsAndMessaging::{
+                HWND_TOP, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SetWindowPos,
+            };
+            use wry::WebViewExtWindows;
+            // SAFETY: the handle is the webview's own child window, alive while `webview` is.
+            let _ = unsafe {
+                SetWindowPos(
+                    webview.hwnd(),
+                    Some(HWND_TOP),
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+                )
+            };
+        }
+        #[cfg(target_os = "macos")]
+        {
+            use tao::platform::macos::WindowExtMacOS;
+            use wry::WebViewExtMacOS;
+            // Adding a subview again moves it to the front.
+            let _ = webview.reparent(self.window.ns_window().cast());
+        }
+        #[cfg(target_os = "linux")]
+        {
+            use wry::WebViewExtUnix;
+            // Re-adding a child draws it last, on top; the caller sets its bounds again.
+            let _ = webview.reparent(&self.fixed);
+        }
     }
 
     fn build(&self, builder: WebViewBuilder) -> wry::Result<WebView> {
@@ -234,6 +280,7 @@ impl PageFactory {
             webview,
             _context: context,
             unread: 0,
+            dark: None,
             activity: activity::Activity::new(visible),
         })
     }
@@ -243,9 +290,11 @@ impl PageFactory {
         let proxy = self.proxy.clone();
         let html = RAIL_HTML
             .replace("__ACCENT__", &web::css_color(&cfg.accent))
-            .replace("__LOGO__", &web::logo_data_url());
+            .replace("__LOGO__", &web::logo_data_url())
+            .replace("__SEE_THROUGH__", if RAIL_SEE_THROUGH { "true" } else { "false" });
         let builder = WebViewBuilder::new_with_web_context(&mut context)
             .with_html(html)
+            .with_transparent(RAIL_SEE_THROUGH)
             .with_bounds(bounds)
             .with_visible(true)
             .with_devtools(cfg!(debug_assertions))
@@ -278,6 +327,9 @@ fn run() -> Result<()> {
     accounts::normalize(&mut cfg.accounts, &mut cfg.active_account);
     let user_css = std::fs::read_to_string(&paths.user_css).unwrap_or_default();
     let system_unlock = lock::system_method();
+    let background = std::env::args().any(|a| a == autostart::BACKGROUND_ARG);
+    let start_hidden = cfg.start_hidden || background;
+    let mut start_at_login = autostart::is_enabled();
     if cfg.app_lock && cfg.pin.is_none() && system_unlock.is_none() {
         // Nothing could unlock it; don't lock the user out of their own app.
         eprintln!("app lock: no PIN and no system unlock available; turning app lock off");
@@ -338,7 +390,7 @@ fn run() -> Result<()> {
     // Created at the end of the first loop iteration when there are 2+ accounts.
     let mut rail: Option<Rail> = None;
 
-    if !cfg.start_hidden {
+    if !start_hidden {
         window.set_visible(true);
         window.set_focus();
     }
@@ -350,9 +402,18 @@ fn run() -> Result<()> {
     let mut focused = window.is_focused();
     // What the app has shown or hidden. tao applies visibility changes a moment later,
     // so asking the window right after a change can give a stale answer.
-    let mut shown = !cfg.start_hidden;
+    let mut shown = !start_hidden;
     let mut minimized = false;
     let mut managing = false;
+    // Settings reopens once the PIN screen it opened is done.
+    let mut back_to_settings = false;
+    // Whether keyboard focus was last handed to Settings (true) or the page.
+    let mut focus_in_settings = false;
+    // Account pages there were when the bar was last put on top.
+    let mut stacked_pages = 0;
+    // Session folders of removed accounts that the Settings view still has
+    // open (it shares the first account's folder); deleted once it closes.
+    let mut rail_leftovers: Vec<PathBuf> = Vec::new();
     let mut lock_state = lock::LockState::new(cfg.app_lock, system_unlock);
     let proxy = event_loop.create_proxy();
 
@@ -462,6 +523,7 @@ fn run() -> Result<()> {
                         }
                         broadcast(&pages, &format!("window.__wisp && window.__wisp.setTheme({on})"));
                         cfg.save(&paths);
+                        rail_dirty = true;
                     }
                     Ipc::Privacy { on } => {
                         cfg.privacy_blur = on;
@@ -473,13 +535,14 @@ fn run() -> Result<()> {
                             &format!("window.__wisp && window.__wisp.setPrivacy({on})"),
                         );
                         cfg.save(&paths);
+                        rail_dirty = true;
                     }
                     Ipc::Ready => {
                         // A page (re)loaded: bring it up to date with what changed since start.
                         let p = &pages[from].webview;
                         let _ = p.evaluate_script(&format!(
-                            "window.__wisp && (window.__wisp.setTheme({}), window.__wisp.setPrivacy({}))",
-                            cfg.theme_enabled, cfg.privacy_blur
+                            "window.__wisp && (window.__wisp.setAccent({:?}), window.__wisp.setTheme({}), window.__wisp.setPrivacy({}))",
+                            cfg.accent, cfg.theme_enabled, cfg.privacy_blur
                         ));
                         let _ = p.evaluate_script(&lock_state.script());
                     }
@@ -487,6 +550,7 @@ fn run() -> Result<()> {
                         if cfg.app_lock {
                             lock_state.lock();
                             managing = false;
+                            back_to_settings = false;
                             push_lock(&pages, &lock_state);
                             rail_dirty = true;
                             layout_dirty = true;
@@ -514,11 +578,21 @@ fn run() -> Result<()> {
                             lock_state.end_setup();
                             cfg.save(&paths);
                             push_lock(&pages, &lock_state);
+                            if std::mem::take(&mut back_to_settings) {
+                                managing = true;
+                                layout_dirty = true;
+                            }
+                            rail_dirty = true;
                         }
                     }
                     Ipc::CancelSetup => {
                         lock_state.end_setup();
                         push_lock(&pages, &lock_state);
+                        if std::mem::take(&mut back_to_settings) {
+                            managing = true;
+                            layout_dirty = true;
+                            rail_dirty = true;
+                        }
                     }
                     Ipc::Zoom { dir } => {
                         cfg.zoom = match dir {
@@ -530,6 +604,18 @@ fn run() -> Result<()> {
                             let _ = p.webview.zoom(cfg.zoom);
                         }
                         cfg.save(&paths);
+                        rail_dirty = true;
+                    }
+                    Ipc::Settings => {
+                        if !lock_state.locked {
+                            managing = true;
+                            layout_dirty = true;
+                            rail_dirty = true;
+                        }
+                    }
+                    Ipc::Appearance { dark } => {
+                        pages[from].dark = Some(dark);
+                        rail_dirty = from == active;
                     }
                     Ipc::Switch { to } => {
                         if !lock_state.locked && (1..=pages.len()).contains(&to) {
@@ -605,18 +691,95 @@ fn run() -> Result<()> {
                             }
                             rail_dirty = true;
                         }
-                        RailMsg::Bar { with_one } => {
-                            cfg.account_bar = with_one;
+                        RailMsg::Set { setting } => {
+                            use settings::Setting;
+                            match setting {
+                                Setting::Theme(on) => {
+                                    cfg.theme_enabled = on;
+                                    broadcast(
+                                        &pages,
+                                        &format!("window.__wisp && window.__wisp.setTheme({on})"),
+                                    );
+                                }
+                                Setting::Accent(color) => {
+                                    if settings::valid_accent(&color) {
+                                        broadcast(
+                                            &pages,
+                                            &format!("window.__wisp && window.__wisp.setAccent({:?})", color),
+                                        );
+                                        cfg.accent = color;
+                                    }
+                                }
+                                Setting::Zoom(z) => {
+                                    cfg.zoom = Config::clamp_zoom(z);
+                                    for p in &pages {
+                                        let _ = p.webview.zoom(cfg.zoom);
+                                    }
+                                }
+                                Setting::AccountBar(on) => {
+                                    cfg.account_bar = on;
+                                    layout_dirty = true;
+                                }
+                                Setting::PrivacyBlur(on) => {
+                                    cfg.privacy_blur = on;
+                                    broadcast(
+                                        &pages,
+                                        &format!("window.__wisp && window.__wisp.setPrivacy({on})"),
+                                    );
+                                }
+                                Setting::Notifications(on) => cfg.notifications = on,
+                                Setting::NotificationPreview(on) => cfg.notification_preview = on,
+                                Setting::AppLock(false) => {
+                                    cfg.app_lock = false;
+                                    cfg.pin = None;
+                                }
+                                // Turning it on goes through choosing a PIN (RailMsg::LockSetup).
+                                Setting::AppLock(true) => {}
+                                Setting::LockAfterMinutes(m) => {
+                                    if settings::LOCK_AFTER.contains(&m) {
+                                        cfg.lock_after_minutes = m;
+                                    }
+                                }
+                                Setting::CloseToTray(on) => cfg.close_to_tray = on,
+                                Setting::StartHidden(on) => cfg.start_hidden = on,
+                                Setting::StartAtLogin(on) => {
+                                    if let Err(e) = autostart::set_enabled(on) {
+                                        eprintln!("start at sign-in: {e}");
+                                    }
+                                    start_at_login = autostart::is_enabled();
+                                }
+                            }
                             cfg.save(&paths);
                             rail_dirty = true;
                         }
+                        RailMsg::LockSetup => {
+                            lock_state.begin_setup();
+                            back_to_settings = managing;
+                            managing = false;
+                            layout_dirty = true;
+                            rail_dirty = true;
+                            push_lock(&pages, &lock_state);
+                        }
+                        RailMsg::Open { link } => {
+                            if let Some(url) = settings::link(&link) {
+                                open_external(url);
+                            }
+                        }
                         RailMsg::Remove { id } => {
-                            if rail.as_ref().is_some_and(|r| r.owner == id) {
+                            // Settings stays open. If its view uses this account's
+                            // folder, the folder is deleted once Settings closes.
+                            let owns = rail.as_ref().is_some_and(|r| r.owner == id);
+                            if owns && !managing {
                                 rail = None;
                             }
-                            remove_account(&mut cfg, &mut pages, &mut active, &id, focused, &paths);
-                            if pages.len() < 2 {
-                                managing = false;
+                            if let Some(dir) =
+                                remove_account(&mut cfg, &mut pages, &mut active, &id, focused, &paths)
+                            {
+                                if owns && managing {
+                                    rail_leftovers.push(dir);
+                                } else {
+                                    remove_dirs_later(vec![dir]);
+                                }
                             }
                             let total = pages.iter().map(|p| p.unread).sum();
                             update_unread(window, tray.as_ref().map(|t| &t.0), total);
@@ -658,6 +821,13 @@ fn run() -> Result<()> {
                     let id = ev.id();
                     if id == m.show.id() {
                         show_window(window, &mut shown);
+                    } else if id == m.settings.id() {
+                        if !lock_state.locked {
+                            managing = true;
+                            show_window(window, &mut shown);
+                            layout_dirty = true;
+                            rail_dirty = true;
+                        }
                     } else if id == m.add_account.id() {
                         if !lock_state.locked {
                             add_account(
@@ -685,6 +855,7 @@ fn run() -> Result<()> {
                             &format!("window.__wisp && window.__wisp.setTheme({})", cfg.theme_enabled),
                         );
                         cfg.save(&paths);
+                        rail_dirty = true;
                     } else if id == m.privacy.id() {
                         cfg.privacy_blur = m.privacy.is_checked();
                         broadcast(
@@ -692,6 +863,7 @@ fn run() -> Result<()> {
                             &format!("window.__wisp && window.__wisp.setPrivacy({})", cfg.privacy_blur),
                         );
                         cfg.save(&paths);
+                        rail_dirty = true;
                     } else if id == m.app_lock.id() {
                         if lock_state.locked {
                             // Can't be changed from the tray while locked.
@@ -699,9 +871,11 @@ fn run() -> Result<()> {
                             cfg.app_lock = false;
                             cfg.pin = None;
                             cfg.save(&paths);
+                            rail_dirty = true;
                         } else {
                             // Turned on once a PIN is chosen in the window.
                             lock_state.begin_setup();
+                            back_to_settings = managing;
                             managing = false;
                             layout_dirty = true;
                             show_window(window, &mut shown);
@@ -711,6 +885,7 @@ fn run() -> Result<()> {
                         if cfg.app_lock {
                             lock_state.lock();
                             managing = false;
+                            back_to_settings = false;
                             push_lock(&pages, &lock_state);
                             layout_dirty = true;
                             rail_dirty = true;
@@ -718,6 +893,7 @@ fn run() -> Result<()> {
                     } else if id == m.notifications.id() {
                         cfg.notifications = m.notifications.is_checked();
                         cfg.save(&paths);
+                        rail_dirty = true;
                     } else if id == m.quit.id() {
                         quit = true;
                     }
@@ -734,14 +910,17 @@ fn run() -> Result<()> {
         let (locked_now, lock_due) = lock_state.check_idle(cfg.app_lock, cfg.lock_after_minutes, now);
         if locked_now {
             managing = false;
+            back_to_settings = false;
             push_lock(&pages, &lock_state);
             rail_dirty = true;
             layout_dirty = true;
         }
 
         let want_rail = accounts::show_bar(pages.len(), cfg.account_bar) || managing;
-        if want_rail != rail.is_some() || rail.as_ref().is_some_and(|r| r.owner != pages[0].id) {
+        // A new view for the bar once its account is gone, but not while Settings is open in it.
+        if want_rail != rail.is_some() || (!managing && rail.as_ref().is_some_and(|r| r.owner != pages[0].id)) {
             rail = None;
+            remove_dirs_later(std::mem::take(&mut rail_leftovers));
             if want_rail {
                 let (rail_rect, _) = host.rects(want_rail, managing);
                 match factory.build_rail(&host, &cfg, &pages[0].id, rail_rect) {
@@ -751,6 +930,14 @@ fn run() -> Result<()> {
             }
             layout_dirty = true;
             rail_dirty = true;
+        }
+        // A new account's page covers the bar until the bar is raised again.
+        if pages.len() != stacked_pages {
+            stacked_pages = pages.len();
+            if let Some(r) = &rail {
+                host.raise(&r.webview);
+                layout_dirty = true;
+            }
         }
         if layout_dirty {
             let (rail_rect, page_rect) = host.rects(want_rail, managing);
@@ -777,8 +964,21 @@ fn run() -> Result<()> {
                 &items,
                 lock_state.locked,
                 managing,
-                cfg.account_bar,
+                pages.get(active).and_then(|p| p.dark),
+                &settings::view(&cfg, start_at_login, system_unlock),
             ));
+        }
+
+        // Keys go to Settings while it's open, and back to the chat after.
+        if managing != focus_in_settings {
+            focus_in_settings = managing;
+            if managing {
+                if let Some(r) = &rail {
+                    let _ = r.webview.focus();
+                }
+            } else if let Some(p) = pages.get(active) {
+                let _ = p.webview.focus();
+            }
         }
 
         // Only the account in front is visible; the others rest like a minimized window.
@@ -787,7 +987,7 @@ fn run() -> Result<()> {
         for (i, p) in pages.iter_mut().enumerate() {
             let at = p
                 .activity
-                .update(&p.webview, window_up && i == active && !managing);
+                .update(&p.webview, window_up && i == active);
             wake = match (wake, at) {
                 (Some(a), Some(b)) => Some(a.min(b)),
                 (a, b) => a.or(b),
@@ -797,6 +997,9 @@ fn run() -> Result<()> {
             *control_flow = ControlFlow::WaitUntil(at);
         }
         if let Some((_, m)) = &tray {
+            m.theme.set_checked(cfg.theme_enabled);
+            m.privacy.set_checked(cfg.privacy_blur);
+            m.notifications.set_checked(cfg.notifications);
             m.app_lock.set_checked(cfg.app_lock);
             m.app_lock.set_enabled(!lock_state.locked);
             m.lock_now.set_enabled(cfg.app_lock && !lock_state.locked);
@@ -806,6 +1009,11 @@ fn run() -> Result<()> {
 
         if quit {
             cfg.save(&paths);
+            if !rail_leftovers.is_empty() {
+                // Whatever can't be deleted now is cleaned up on the next start.
+                rail = None;
+                remove_dirs_now(std::mem::take(&mut rail_leftovers));
+            }
             tray = None;
             *control_flow = ControlFlow::Exit;
         }
@@ -816,6 +1024,11 @@ fn run() -> Result<()> {
 fn switch_to(pages: &mut [Page], active: &mut usize, to: usize, focused: bool, cfg: &mut Config) {
     if to >= pages.len() {
         return;
+    }
+    if *active != to {
+        let _ = pages[to]
+            .webview
+            .evaluate_script("window.__wisp && window.__wisp.enter()");
     }
     *active = to;
     pages[to].activity.set_focused(focused);
@@ -851,7 +1064,8 @@ fn add_account(
     }
 }
 
-/// Remove an account and its session. The last account can't be removed.
+/// Remove an account. The last account can't be removed. Returns its session
+/// folder, for the caller to delete.
 fn remove_account(
     cfg: &mut Config,
     pages: &mut Vec<Page>,
@@ -859,13 +1073,11 @@ fn remove_account(
     id: &str,
     focused: bool,
     paths: &Paths,
-) {
+) -> Option<PathBuf> {
     if pages.len() < 2 {
-        return;
+        return None;
     }
-    let Some(i) = pages.iter().position(|p| p.id == id) else {
-        return;
-    };
+    let i = pages.iter().position(|p| p.id == id)?;
     let current = pages[*active].id.clone();
     drop(pages.remove(i));
     cfg.accounts.retain(|a| a.id != id);
@@ -873,13 +1085,13 @@ fn remove_account(
     switch_to(pages, active, next, focused, cfg);
     cfg.save(paths);
 
-    // Sign the account out of Wisp for good: delete its session.
-    remove_dirs_later(vec![accounts::data_dir(&paths.webview_data, id)]);
+    // Sign the account out of Wisp for good.
     #[cfg(target_os = "macos")]
     if accounts::separate_sessions_supported() {
         use wry::WebViewExtDarwin;
         WebView::remove_data_store(&accounts::store_id(id), |_| {});
     }
+    Some(accounts::data_dir(&paths.webview_data, id))
 }
 
 /// Delete session folders in the background. A webview can hold its files for
@@ -898,6 +1110,18 @@ fn remove_dirs_later(dirs: Vec<PathBuf>) {
             }
         }
     });
+}
+
+/// Delete session folders before quitting, giving webviews a moment to let go.
+fn remove_dirs_now(dirs: Vec<PathBuf>) {
+    for dir in dirs {
+        for _ in 0..6 {
+            if !dir.exists() || std::fs::remove_dir_all(&dir).is_ok() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
+    }
 }
 
 fn broadcast(pages: &[Page], script: &str) {
@@ -923,8 +1147,9 @@ fn forward_tray_and_menu_events(proxy: EventLoopProxy<UserEvent>) {
 fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
     let m = TrayMenu {
         show: MenuItem::new(format!("Show {APP_NAME}"), true, None),
+        settings: MenuItem::new("Settings", true, None),
         add_account: MenuItem::new("Add account", cfg.accounts.len() < accounts::max_accounts(), None),
-        theme: CheckMenuItem::new("Modern theme", true, cfg.theme_enabled, None),
+        theme: CheckMenuItem::new("Wisp theme", true, cfg.theme_enabled, None),
         privacy: CheckMenuItem::new("Privacy blur", true, cfg.privacy_blur, None),
         app_lock: CheckMenuItem::new("App lock", true, cfg.app_lock, None),
         lock_now: MenuItem::new("Lock now", cfg.app_lock, None),
@@ -936,6 +1161,7 @@ fn build_tray(cfg: &Config) -> Result<(TrayIcon, TrayMenu)> {
     menu.append_items(&[
         &m.show,
         &m.add_account,
+        &m.settings,
         &PredefinedMenuItem::separator(),
         &m.theme,
         &m.privacy,

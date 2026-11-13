@@ -11,6 +11,7 @@ const INJECT_JS: &str = include_str!("web/inject.js");
 const THEME_CSS: &str = include_str!("web/theme.css");
 const PRIVACY_CSS: &str = include_str!("web/privacy.css");
 const LOCK_CSS: &str = include_str!("web/lock.css");
+const MONO_JS: &str = include_str!("web/mono.js");
 const LOGO_PNG: &[u8] = include_bytes!("../assets/icons/wisp-128.png");
 
 /// A WebKit user agent WhatsApp Web accepts. WKWebView and WebKitGTK don't
@@ -65,6 +66,12 @@ pub enum Ipc {
     Cycle {
         forward: bool,
     },
+    /// WhatsApp switched between its dark and light appearance.
+    Appearance {
+        dark: bool,
+    },
+    /// Open Settings (Ctrl/Cmd+,).
+    Settings,
 }
 
 impl std::fmt::Debug for Ipc {
@@ -107,6 +114,8 @@ impl Ipc {
             Ipc::CancelSetup => "cancelsetup",
             Ipc::Switch { .. } => "switch",
             Ipc::Cycle { .. } => "cycle",
+            Ipc::Appearance { .. } => "appearance",
+            Ipc::Settings => "settings",
         }
     }
 }
@@ -137,7 +146,10 @@ pub fn init_script(c: &PageConfig) -> String {
         "lockCss": LOCK_CSS,
         "logo": logo_data_url(),
     });
-    INJECT_JS.replace("__WISP_CONFIG__", &cfg.to_string())
+    // Insert the recolor engine first, so nothing in the config can be mistaken for it.
+    INJECT_JS
+        .replace("__WISP_MONO__", MONO_JS)
+        .replace("__WISP_CONFIG__", &cfg.to_string())
 }
 
 /// Script that shows the current lock state in the page.
@@ -324,6 +336,8 @@ mod tests {
         assert!(s.contains("#ff0000"));
         assert!(s.contains("wisp-private"), "privacy CSS is embedded");
         assert!(s.contains("wisp-locked"), "lock CSS is embedded");
+        assert!(s.contains("const wispMono"), "the recolor engine is embedded");
+        assert!(!s.contains("__WISP_MONO__") && !s.contains("__WISP_CONFIG__"));
         assert!(
             s.contains("data:image/png;base64,iVBORw0KGgo"),
             "logo is embedded as PNG"

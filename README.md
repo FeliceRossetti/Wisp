@@ -35,8 +35,10 @@ reimplement the protocol, automate your account or read your messages.
 
 - **Small and fast.** About 1 MB to download (2 MB for the universal macOS app). The window shows
   in a fraction of a second.
-- **Modern theme.** System fonts, slim scrollbars, rounded chat rows, pill-shaped search and
-  composer, softer message bubbles and an accent color you choose. Toggle it any time with
+- **Calm, monochrome theme.** WhatsApp's greens, gradients and wallpaper give way to graphite (or
+  soft white in light mode), with one accent (the logo's teal, or any color you pick) for unread
+  badges, the active account and focus. Flat chat background, rounded rows and bubbles, pill-shaped
+  search and composer, slim scrollbars and quick, smooth transitions. Toggle it any time with
   <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>.
 - **Privacy blur.** Blurs chat names, message previews, avatars and messages until you hover over
   them, and hides who wrote and what they wrote from notifications. Handy in public, at work or
@@ -48,6 +50,11 @@ reimplement the protocol, automate your account or read your messages.
   for a while. Unlock with Windows Hello, Touch ID (or your Mac password), or a Wisp PIN. Messages
   keep arriving while it's locked, and notifications don't show who wrote or what.
 - **Your own CSS.** Drop a `user.css` next to the settings file and it's applied on every start.
+- **Settings in one place.** Accounts, theme and accent color, zoom, privacy, notifications, app
+  lock and startup, on one screen: click **⚙** in the account bar, choose **Settings** in the tray or
+  press <kbd>Ctrl/Cmd</kbd>+<kbd>,</kbd>.
+- **Opens when you sign in**, if you like: Wisp starts quietly in the tray, so notifications arrive
+  without opening it by hand.
 - **Tray icon** with an unread badge. Closing the window keeps Wisp running in the tray.
 - **Native notifications** for new messages, under Wisp's own name and icon, with an option to hide
   message previews. On Windows, clicking one opens Wisp on the account the message is for, and Wisp
@@ -66,13 +73,13 @@ reimplement the protocol, automate your account or read your messages.
 
 Compared on Windows 11 with the Microsoft Store WhatsApp app (which also runs WhatsApp Web in
 WebView2), with the same account, using [`bench/bench.ps1`](bench/bench.ps1). Sizes are for Wisp
-0.2.0; timing, CPU and memory were measured with Wisp 0.1.0 on one machine, so treat them as
+0.3.0; timing, CPU and memory were measured with Wisp 0.1.0 on one machine, so treat them as
 indicative:
 
 | | Wisp | Store app |
 |---|---|---|
 | Download (Windows zip) | **0.8 MB** | — |
-| Installed size | **1.5 MB** | 331 MB |
+| Installed size | **1.6 MB** | 331 MB |
 | Window visible after launch | **0.3 s** | 1.7 s |
 | CPU time in the first 45 s | **13.8 s** | 17.0 s |
 | RAM in use, window in background | **~0.2–0.5 GB** | ~0.9 GB |
@@ -145,7 +152,8 @@ device**.
 
 | Shortcut | Action |
 |---|---|
-| <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Toggle the modern theme |
+| <kbd>Ctrl/Cmd</kbd>+<kbd>,</kbd> | Open or close Settings |
+| <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd> | Toggle the Wisp theme |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> | Toggle privacy blur |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> | Lock Wisp (when app lock is on) |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>=</kbd> / <kbd>-</kbd> / <kbd>0</kbd> | Zoom in / out / reset |
@@ -155,19 +163,41 @@ device**.
 | <kbd>Ctrl/Cmd</kbd>+<kbd>W</kbd> | Hide to the tray |
 | <kbd>Ctrl/Cmd</kbd>+<kbd>Q</kbd> | Quit |
 
-The tray menu also lets you add an account, toggle the theme, privacy blur, app lock and
-notifications, lock Wisp, reload, or quit.
+The tray menu also lets you open Settings, add an account, toggle the theme, privacy blur, app lock
+and notifications, lock Wisp, reload, or quit.
+
+### Settings
+
+Click **⚙** at the bottom of the account bar, choose **Settings** in the tray menu or press
+<kbd>Ctrl/Cmd</kbd>+<kbd>,</kbd>. Changes apply right away and are saved to `config.toml`.
+
+- **Accounts**: rename, reorder, add or remove accounts, and choose whether the account bar shows
+  with a single account.
+- **Appearance**: the Wisp theme, the accent color (six presets or any color you pick) and zoom.
+- **Privacy and notifications**: privacy blur, notifications and message previews.
+- **Security**: app lock, when it locks automatically, and changing the PIN.
+- **Startup and window**: open Wisp when you sign in to your computer, start in the tray, and keep
+  Wisp running when the window is closed.
+
+**Open Wisp when you sign in** registers Wisp the way your system expects for a per-user app: under
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run` on Windows, as a launch agent in
+`~/Library/LaunchAgents` on macOS, and in `~/.config/autostart` on Linux. Started that way, Wisp
+opens in the tray (it's given `--background`). It points at the copy of Wisp you turned it on from,
+and uninstalling Wisp removes it.
 
 ### Multiple accounts
 
 The slim account bar on the left shows each account with its initials, color and unread count.
 Click **+** there (or **Add account** in the tray menu) and scan the QR code with the other phone.
 Click an account to switch to it. Right-click it, or click **⚙**, to rename, reorder or remove
-accounts. Removing an account signs it out of Wisp and deletes its session from this computer; the
-phone may keep listing Wisp under **Linked devices** for a while, and you can remove it there too.
+accounts in Settings. To remove one, click **✕** and press and hold **Hold to remove** for two
+seconds; letting go early cancels. Removing an account signs it out of Wisp and deletes its session
+from this computer; the phone may keep listing Wisp under **Linked devices** for a while, and you
+can remove it there too.
 
-With a single account you can hide the bar: untick **Show the account bar when there's only one
-account** under **⚙**. It always shows once you have two.
+With a single account you can hide the bar: turn off **Show the account bar with one account** in
+Settings. It always shows once you have two, and Settings stays a <kbd>Ctrl/Cmd</kbd>+<kbd>,</kbd>
+or a tray click away.
 
 Each account runs in its own webview with its own data folder, so sessions never mix. Accounts you
 aren't looking at rest in the background like a minimized window. Theme, privacy blur, app lock
@@ -176,22 +206,23 @@ versions Wisp offers a single account.
 
 ### App lock
 
-Turn it on from the tray menu (**App lock**) and choose a PIN. Where your computer supports it, you
+Turn it on in Settings (or **App lock** in the tray menu) and choose a PIN. Where your computer supports it, you
 unlock with **Windows Hello** or **Touch ID / your Mac password**, and the PIN is a backup for when
 that isn't available. On Linux you unlock with the PIN.
 
 Wisp locks when it starts, when you press <kbd>Ctrl/Cmd</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd> or
 choose **Lock now**, and after the window has been unfocused, minimized or in the tray for
-`lock_after_minutes` (5 by default; 0 turns that off). After 5 wrong PINs, PIN entry pauses for 30
-seconds. Only a salted, slow hash of the PIN is stored. To change the PIN, turn app lock off and
-on again.
+the time set under **Lock automatically** in Settings (5 minutes by default, or only when Wisp
+starts). After 5 wrong PINs, PIN entry pauses for 30 seconds. Only a salted, slow hash of the PIN is
+stored. Change the PIN with **Change PIN** in Settings.
 
 App lock keeps people who use your computer from reading your chats in Wisp. It isn't a substitute
 for locking your computer: someone signed in as you could still read Wisp's files.
 
 ## Configuration
 
-Settings live in `config.toml`, created on first run. WhatsApp sessions are kept separately:
+Settings are saved in `config.toml`, created on first run; you can also edit it by hand while Wisp
+is closed. WhatsApp sessions are kept separately:
 
 | OS | Settings (`config.toml`, `user.css`) | WhatsApp sessions |
 |---|---|---|
@@ -202,12 +233,12 @@ Settings live in `config.toml`, created on first run. WhatsApp sessions are kept
 ```toml
 theme_enabled = true
 privacy_blur = false        # blur chats until hovered; hide notification contents
-app_lock = false            # turn on from the tray, which also asks for a PIN
-lock_after_minutes = 5      # lock after this long away; 0 = only on start or by hand
+app_lock = false            # turn on in Settings or the tray, which also asks for a PIN
+lock_after_minutes = 5      # 0, 1, 5, 15, 30 or 60 minutes away; 0 = only on start or by hand
 account_bar = true          # show the account bar even with a single account
-accent = "#06bcbc"          # any CSS color
+accent = "#06bcbc"          # the one accent color (unread, active account, focus), as #rrggbb
 close_to_tray = true
-start_hidden = false
+start_hidden = false        # open in the tray (starting at sign-in always does)
 notifications = true
 notification_preview = true # false = sender name only
 zoom = 1.0

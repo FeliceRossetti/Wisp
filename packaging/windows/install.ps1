@@ -58,6 +58,8 @@ if ($Uninstall) {
     Stop-Wisp
     Remove-Item $StartMenuLink, $DesktopLink -Force -ErrorAction SilentlyContinue
     Remove-Item $UninstallKey -Recurse -Force -ErrorAction SilentlyContinue
+    # Starting at sign-in (turned on in Wisp's Settings).
+    Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name Wisp -ErrorAction SilentlyContinue
     # Wisp's notification identity, and the notification settings Windows keeps for it.
     foreach ($key in 'HKCU:\Software\Classes\AppUserModelId\io.github.felicerossetti.wisp',
                      'HKCU:\Software\Microsoft\Windows\CurrentVersion\Notifications\Settings\io.github.felicerossetti.wisp') {

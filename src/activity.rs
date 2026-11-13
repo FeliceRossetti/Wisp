@@ -63,10 +63,13 @@ pub struct Activity {
 }
 
 impl Activity {
-    pub fn new(focused: bool) -> Self {
+    /// `visible` is how the webview was created, so the first plan that
+    /// differs (an account added in the background, then switched to) is applied.
+    pub fn new(visible: bool) -> Self {
+        let focused = visible;
         Self {
             applied: Plan {
-                visible: true,
+                visible,
                 low_memory: false,
                 wake_at: None,
             },
