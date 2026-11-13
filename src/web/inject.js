@@ -79,6 +79,31 @@
     el.textContent = css;
   };
 
+  // ---- Motion ----------------------------------------------------------------
+  const EASE = "cubic-bezier(0.2, 0, 0, 1)";
+  const EXIT = "cubic-bezier(0.3, 0, 0.8, 0.15)";
+  const calm = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Crossfades for Wisp's own changes to the page (theme, accent, privacy blur).
+  const MOTION_CSS = `
+    ::view-transition-old(root), ::view-transition-new(root) {
+      animation-duration: 260ms;
+      animation-timing-function: ${EASE};
+    }
+    @media (prefers-reduced-motion: reduce) {
+      ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+    }`;
+  const smoothly = (change) => {
+    if (document.startViewTransition && document.visibilityState === "visible" && document.body && !calm()) {
+      try {
+        document.startViewTransition(change);
+        return;
+      } catch (_) {
+        /* fall through */
+      }
+    }
+    change();
+  };
+
   // The mono recolor (mono.js) is rebuilt whenever WhatsApp adds styles.
   let monoTimer = 0;
   const buildMono = () => {
@@ -120,10 +145,17 @@
     }
   };
 
+  const applyNow = () => {
+    applyTheme();
+    clearTimeout(monoTimer);
+    buildMono();
+  };
+
   const applyTheme = () => {
     const root = document.documentElement;
     if (!root) return;
     root.style.setProperty("--wisp-accent", CFG.accent);
+    if (!document.getElementById("wisp-motion")) addStyle("wisp-motion", MOTION_CSS);
     root.classList.toggle("wisp-themed", themeOn);
     root.classList.toggle("wisp-private", privateOn);
     if (themeOn) addStyle("wisp-theme", CFG.css);
@@ -155,15 +187,42 @@
     el("input", { type: "password", inputMode: "numeric", autocomplete: "off", maxLength: 12, placeholder });
   const linkButton = (text, onclick) => el("button", { type: "button", className: "link", textContent: text, onclick });
 
+  const shake = (node) => {
+    if (calm() || !node.animate) return;
+    node.animate(
+      [{ transform: "translateX(0)" }, { transform: "translateX(-8px)" }, { transform: "translateX(7px)" },
+        { transform: "translateX(-4px)" }, { transform: "translateX(2px)" }, { transform: "translateX(0)" }],
+      { duration: 360, easing: "ease-out" },
+    );
+  };
+  let shownMessage = "";
   const renderLock = () => {
     const root = document.documentElement;
     if (!root) return;
     const setupOnly = lock.setup && !lock.locked;
     root.classList.toggle("wisp-locked", lock.locked);
     root.classList.toggle("wisp-lock-setup", setupOnly);
-    lockEl?.remove();
+    const was = lockEl && !lockEl.classList.contains("leaving") ? lockEl : null;
+    const wasCard = was?.querySelector(".card");
+    if (!lock.locked && !setupOnly) {
+      // Fade the overlay out over the chats instead of cutting to them.
+      if (was && !calm() && was.animate) {
+        was.classList.add("leaving");
+        was.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: EXIT, fill: "forwards" }).finished.then(
+          () => was.remove(),
+          () => was.remove(),
+        );
+        wasCard?.animate([{ transform: "none" }, { transform: "scale(0.97)" }], { duration: 240, easing: EXIT, fill: "forwards" });
+      } else {
+        was?.remove();
+      }
+      document.querySelectorAll("#wisp-lock.leaving").forEach((n) => n !== was && n.remove());
+      lockEl = null;
+      shownMessage = "";
+      return;
+    }
+    document.querySelectorAll("#wisp-lock").forEach((n) => n.remove());
     lockEl = null;
-    if (!lock.locked && !setupOnly) return;
     if (!document.getElementById("wisp-lock-style")) addStyle("wisp-lock-style", CFG.lockCss);
 
     const message = el("p", { className: "message", textContent: lock.message || "" });
@@ -174,13 +233,17 @@
     if (setupOnly) {
       const first = pinInput("New PIN");
       const second = pinInput("Confirm PIN");
-      const form = el("form", {}, first, second, el("button", { type: "submit", textContent: "Turn on app lock" }),
+      const form = el("form", {}, first, second, el("button", { type: "submit", textContent: "Save PIN" }),
         linkButton("Cancel", () => post({ kind: "cancelsetup" })), message);
       form.onsubmit = (e) => {
         e.preventDefault();
-        if (!/^\d{4,12}$/.test(first.value)) message.textContent = "Use 4 to 12 digits.";
-        else if (first.value !== second.value) message.textContent = "The PINs don't match.";
-        else post({ kind: "setpin", pin: first.value });
+        if (!/^\d{4,12}$/.test(first.value)) {
+          message.textContent = "Use 4 to 12 digits.";
+          shake(card);
+        } else if (first.value !== second.value) {
+          message.textContent = "The PINs don't match.";
+          shake(card);
+        } else post({ kind: "setpin", pin: first.value });
       };
       card.append(
         el("h1", { textContent: "Choose a PIN" }),
@@ -219,10 +282,15 @@
       focus = input;
     }
 
-    lockEl = el("div", { id: "wisp-lock" }, card);
+    // Only a lock screen that wasn't showing animates in; updates just redraw it.
+    lockEl = el("div", { id: "wisp-lock", className: was ? "" : "appear" }, card);
     lockEl.setAttribute("role", "dialog");
     lockEl.setAttribute("aria-modal", "true");
     root.appendChild(lockEl);
+    // A new message (a wrong PIN) gives the card a little shake.
+    const text = lock.message || "";
+    if (was && text && text !== shownMessage) shake(card);
+    shownMessage = text;
     setTimeout(() => focus?.focus(), 0);
   };
 
@@ -277,17 +345,18 @@
       let handled = true;
       if (mod && !e.altKey && !e.shiftKey && /^[1-9]$/.test(e.key)) post({ kind: "switch", to: Number(e.key) });
       else if (e.ctrlKey && !e.altKey && e.key === "Tab") post({ kind: "cycle", forward: !e.shiftKey });
+      else if (mod && !e.shiftKey && !e.altKey && e.key === ",") post({ kind: "settings" });
       else if (mod && e.shiftKey && key === "l") post({ kind: "lock" });
       else if (mod && !e.shiftKey && key === "q") post({ kind: "quit" });
       else if (mod && !e.shiftKey && key === "w") post({ kind: "hide" });
       else if ((mod && !e.shiftKey && key === "r") || e.key === "F5") location.reload();
       else if (mod && e.shiftKey && key === "t") {
         themeOn = !themeOn;
-        applyTheme();
+        smoothly(applyNow);
         post({ kind: "theme", on: themeOn });
       } else if (mod && e.shiftKey && key === "b") {
         privateOn = !privateOn;
-        applyTheme();
+        smoothly(applyNow);
         post({ kind: "privacy", on: privateOn });
       } else if (mod && (key === "=" || key === "+")) post({ kind: "zoom", dir: "in" });
       else if (mod && key === "-") post({ kind: "zoom", dir: "out" });
@@ -301,15 +370,40 @@
     true,
   );
 
+  // Only crossfade real changes: these are also sent when a page loads.
   const setTheme = (on) => {
+    if (themeOn === !!on) return applyTheme();
     themeOn = !!on;
-    applyTheme();
+    smoothly(applyNow);
   };
 
   const setPrivacy = (on) => {
+    if (privateOn === !!on) return applyTheme();
     privateOn = !!on;
-    applyTheme();
+    smoothly(applyNow);
   };
 
-  window.__wisp = { post, setTheme, setPrivacy, setLock };
+  const setAccent = (color) => {
+    if (CFG.accent === String(color)) return;
+    CFG.accent = String(color);
+    // Updates --wisp-accent and rebuilds the mono recolor with the new accent.
+    smoothly(applyNow);
+  };
+
+  // Switching to this account: fade it in from its own background.
+  const enter = () => {
+    if (lock.locked || calm() || !document.body || !document.documentElement.animate) return;
+    let bg = getComputedStyle(document.body).backgroundColor;
+    if (!bg || bg === "transparent" || bg === "rgba(0, 0, 0, 0)") bg = document.body.classList.contains("dark") ? "#0b141a" : "#ffffff";
+    document.getElementById("wisp-enter")?.remove();
+    const veil = el("div", { id: "wisp-enter" });
+    veil.style.cssText = `position:fixed;inset:0;z-index:2147483646;pointer-events:none;background:${bg}`;
+    document.documentElement.appendChild(veil);
+    veil.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: EASE, fill: "forwards" }).finished.then(
+      () => veil.remove(),
+      () => veil.remove(),
+    );
+  };
+
+  window.__wisp = { post, setTheme, setPrivacy, setLock, setAccent, enter };
 })();

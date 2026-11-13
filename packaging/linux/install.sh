@@ -8,9 +8,11 @@ BIN="${XDG_BIN_HOME:-$HOME/.local/bin}"
 DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 ICON="$DATA/icons/hicolor/512x512/apps/wisp.png"
 DESKTOP="$DATA/applications/wisp.desktop"
+# Written by Wisp when "Open Wisp when you sign in" is on.
+AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/wisp.desktop"
 
 if [ "${1:-}" = "--uninstall" ]; then
-    rm -f "$BIN/wisp" "$ICON" "$DESKTOP"
+    rm -f "$BIN/wisp" "$ICON" "$DESKTOP" "$AUTOSTART"
     echo "Wisp removed. Settings stay in ~/.config/wisp."
     exit 0
 fi
