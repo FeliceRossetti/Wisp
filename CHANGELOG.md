@@ -6,6 +6,15 @@ All notable changes to Wisp are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- The theme is now calm and monochrome: WhatsApp's greens and blues become graphite (or soft white
+  in light mode) with a single accent, the logo's teal, for unread badges, read ticks, the active
+  account and focus. The chat background is flat, without the wallpaper's gradient and doodles.
+  Rows, bubbles, menus and inputs get softer shapes and quick, smooth transitions.
+- The account bar, manage screen and lock screen use the same graphite palette, follow WhatsApp's own
+  dark or light setting, and show every account with the same neutral avatar.
+
 ## [0.2.0] - 2026-11-10
 
 ### Added

@@ -1,14 +1,18 @@
 /*
- * Wisp theme: a light-touch modern layer over WhatsApp Web.
+ * Wisp theme: a calm, monochrome layer over WhatsApp Web.
  *
- * WhatsApp Web's class names are generated and change often, so these rules
- * only target stable hooks (ids, roles, data attributes). Everything is
+ * Colors come from mono.js, which recolors WhatsApp's own styles to graphite
+ * with a single accent. This file adds shape and motion: type, scrollbars,
+ * rounded rows and bubbles, pill inputs, quiet menus and a flat chat
+ * background. WhatsApp's class names are generated and change often, so these
+ * rules only target stable hooks (ids, roles, data attributes). Everything is
  * scoped under html.wisp-themed so Ctrl/Cmd+Shift+T turns it off instantly.
  * Put your own overrides in user.css next to config.toml.
  */
 
 html.wisp-themed {
-  --wisp-radius: 14px;
+  --wisp-radius: 16px;
+  --wisp-ease: cubic-bezier(0.2, 0, 0, 1);
   --wisp-font: "Inter", "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont,
     "SF Pro Text", "Helvetica Neue", "Cantarell", "Ubuntu", "Noto Sans", system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
@@ -36,13 +40,27 @@ html.wisp-themed ::-webkit-scrollbar-track {
   background: transparent;
 }
 html.wisp-themed ::-webkit-scrollbar-thumb {
-  background-color: rgba(128, 128, 128, 0.35);
+  background-color: rgba(128, 128, 128, 0.28);
   border: 3px solid transparent;
   border-radius: 10px;
   background-clip: content-box;
 }
 html.wisp-themed ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(128, 128, 128, 0.6);
+  background-color: rgba(128, 128, 128, 0.5);
+}
+
+/* Flat chat background: no doodle wallpaper (mono.js also drops its gradient) */
+html.wisp-themed :is([data-asset-chat-background-dark], [data-asset-chat-background-light], [data-asset-chat-background-beige]) {
+  background-image: none !important;
+}
+
+/* Smooth, quick feedback on everything you can point at */
+html.wisp-themed #app :is(button, [role="button"], [role="tab"], [role="menuitem"], [role="row"] > div, [role="listitem"] > div) {
+  transition:
+    background-color 140ms var(--wisp-ease),
+    color 140ms var(--wisp-ease),
+    box-shadow 140ms var(--wisp-ease),
+    opacity 140ms var(--wisp-ease);
 }
 
 /* Chat list: inset rounded rows */
@@ -55,16 +73,13 @@ html.wisp-themed #pane-side [role="listitem"] > div,
 html.wisp-themed #pane-side [role="row"] > div {
   border-radius: 12px;
   overflow: hidden;
-  transition: background-color 120ms ease;
-}
-
-/* Unread badges pick up the accent color */
-html.wisp-themed #pane-side span[aria-label*="unread" i] {
-  background-color: var(--wisp-accent) !important;
-  font-weight: 600;
 }
 
 /* Search box and composer: pill-shaped */
+html.wisp-themed #side input[type="text"],
+html.wisp-themed #side [role="textbox"] {
+  border-radius: 999px !important;
+}
 html.wisp-themed #side div:has(> div > [contenteditable="true"]),
 html.wisp-themed footer div:has(> div > [contenteditable="true"]),
 html.wisp-themed footer div:has(> [contenteditable="true"]) {
@@ -90,12 +105,14 @@ html.wisp-themed [data-animate-dropdown-item] {
 }
 html.wisp-themed [role="menu"],
 html.wisp-themed [role="dialog"] {
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18) !important;
+  box-shadow:
+    0 0 0 1px rgba(128, 128, 128, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.22) !important;
 }
 
 /* Selection and focus rings */
 html.wisp-themed ::selection {
-  background: color-mix(in srgb, var(--wisp-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--wisp-accent) 30%, transparent);
 }
 html.wisp-themed :focus-visible {
   outline: 2px solid color-mix(in srgb, var(--wisp-accent) 70%, transparent);

@@ -2,6 +2,10 @@
  * App lock screen. While <html> has wisp-locked (or wisp-lock-setup), the
  * WhatsApp page is hidden and can't take focus; only this overlay shows. The
  * overlay lives outside <body>, so hiding the page never hides the lock.
+ *
+ * Graphite palette like the rest of Wisp. It follows WhatsApp's own dark or
+ * light choice (html.wisp-dark / html.wisp-light, set by inject.js) and the
+ * system setting until WhatsApp has said which it uses.
  */
 
 html.wisp-locked body,
@@ -10,13 +14,17 @@ html.wisp-lock-setup body {
 }
 
 #wisp-lock {
-  --bg: #f5f7f9;
+  --bg: #f4f4f5;
   --card: #ffffff;
-  --text: #111b21;
-  --muted: #54656f;
-  --line: #d1d7db;
+  --text: #111113;
+  --muted: #6b6b72;
+  --line: #e4e4e7;
+  --field: #f4f4f5;
+  --ink: #111113;
+  --on-ink: #ffffff;
   --accent: var(--wisp-accent, #06bcbc);
-  --error: #d93025;
+  --error: #c81e1e;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
   position: fixed;
   inset: 0;
   z-index: 2147483647;
@@ -28,49 +36,77 @@ html.wisp-lock-setup body {
   color: var(--text);
   font: 15px/1.45 "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Cantarell", "Ubuntu", "Noto Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
   visibility: visible;
 }
 
 @media (prefers-color-scheme: dark) {
-  #wisp-lock {
-    --bg: #0b141a;
-    --card: #111b21;
-    --text: #e9edef;
-    --muted: #8696a0;
-    --line: #2a3942;
+  html:not(.wisp-light) #wisp-lock {
+    --bg: #0f0f11;
+    --card: #17171a;
+    --text: #ececee;
+    --muted: #8b8b92;
+    --line: #26262a;
+    --field: #1d1d21;
+    --ink: #ececee;
+    --on-ink: #111113;
     --error: #f28b82;
   }
+}
+
+html.wisp-dark #wisp-lock {
+  --bg: #0f0f11;
+  --card: #17171a;
+  --text: #ececee;
+  --muted: #8b8b92;
+  --line: #26262a;
+  --field: #1d1d21;
+  --ink: #ececee;
+  --on-ink: #111113;
+  --error: #f28b82;
 }
 
 html.wisp-locked #wisp-lock,
 html.wisp-lock-setup #wisp-lock {
   display: flex;
+  animation: wisp-lock-in 180ms var(--ease);
+}
+
+@keyframes wisp-lock-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 #wisp-lock .card {
   width: min(360px, 100%);
-  padding: 32px 28px 28px;
+  padding: 32px 28px 26px;
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--card);
   text-align: center;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  animation: wisp-card-in 220ms var(--ease);
+}
+
+@keyframes wisp-card-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.99); }
+  to { opacity: 1; transform: none; }
 }
 
 #wisp-lock img {
-  width: 72px;
-  height: 72px;
-  margin-bottom: 12px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 14px;
 }
 
 #wisp-lock h1 {
   margin: 0 0 6px;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 #wisp-lock p {
-  margin: 0 0 20px;
+  margin: 0 0 22px;
   color: var(--muted);
 }
 
@@ -86,32 +122,48 @@ html.wisp-lock-setup #wisp-lock {
   padding: 11px 14px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: transparent;
+  background: var(--field);
   color: var(--text);
   font: inherit;
   font-size: 18px;
   letter-spacing: 0.3em;
   text-align: center;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
 }
 
 #wisp-lock input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 #wisp-lock button {
   padding: 11px 16px;
   border: 0;
   border-radius: 12px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--ink);
+  color: var(--on-ink);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  transition: opacity 140ms var(--ease), transform 140ms var(--ease), background-color 140ms var(--ease);
+}
+
+#wisp-lock button:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+#wisp-lock button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+#wisp-lock button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 #wisp-lock button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: default;
 }
 
@@ -124,6 +176,7 @@ html.wisp-lock-setup #wisp-lock {
 
 #wisp-lock button.link:hover {
   color: var(--text);
+  opacity: 1;
 }
 
 #wisp-lock .message {
@@ -131,4 +184,11 @@ html.wisp-lock-setup #wisp-lock {
   margin: 4px 0 0;
   color: var(--error);
   font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #wisp-lock,
+  #wisp-lock .card {
+    animation: none;
+  }
 }

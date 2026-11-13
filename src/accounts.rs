@@ -229,7 +229,13 @@ pub struct RailItem<'a> {
 }
 
 /// Script that redraws the rail.
-pub fn rail_script(items: &[RailItem], locked: bool, manage: bool, bar_with_one: bool) -> String {
+pub fn rail_script(
+    items: &[RailItem],
+    locked: bool,
+    manage: bool,
+    bar_with_one: bool,
+    dark: Option<bool>,
+) -> String {
     // While locked the rail draws only the logo, so don't even send the names.
     let shown = if locked { &[][..] } else { items };
     let accounts: Vec<_> = shown
@@ -252,6 +258,8 @@ pub fn rail_script(items: &[RailItem], locked: bool, manage: bool, bar_with_one:
         "canAdd": items.len() < max_accounts(),
         "multiSupported": separate_sessions_supported(),
         "barWithOne": bar_with_one,
+        // WhatsApp's own dark/light choice, so the bar matches it (None: follow the system).
+        "dark": dark,
     });
     format!("window.__rail && window.__rail.render({state})")
 }
@@ -412,6 +420,7 @@ mod tests {
             true,
             true,
             true,
+            Some(true),
         );
         assert!(js.contains(r#""manage":false"#));
         assert!(js.contains(r#""locked":true"#));

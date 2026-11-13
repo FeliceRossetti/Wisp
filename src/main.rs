@@ -68,6 +68,8 @@ struct Page {
     webview: WebView,
     _context: WebContext,
     unread: u32,
+    /// Whether WhatsApp shows this account in dark mode (None until it says).
+    dark: Option<bool>,
     activity: activity::Activity,
 }
 
@@ -234,6 +236,7 @@ impl PageFactory {
             webview,
             _context: context,
             unread: 0,
+            dark: None,
             activity: activity::Activity::new(visible),
         })
     }
@@ -531,6 +534,10 @@ fn run() -> Result<()> {
                         }
                         cfg.save(&paths);
                     }
+                    Ipc::Appearance { dark } => {
+                        pages[from].dark = Some(dark);
+                        rail_dirty = from == active;
+                    }
                     Ipc::Switch { to } => {
                         if !lock_state.locked && (1..=pages.len()).contains(&to) {
                             switch_to(&mut pages, &mut active, to - 1, focused, &mut cfg);
@@ -778,6 +785,7 @@ fn run() -> Result<()> {
                 lock_state.locked,
                 managing,
                 cfg.account_bar,
+                pages.get(active).and_then(|p| p.dark),
             ));
         }
 

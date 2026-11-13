@@ -5,33 +5,58 @@
 <title>Accounts</title>
 <style>
   :root {
-    --bg: #f0f2f5;
+    --bg: #f4f4f5;
     --panel: #ffffff;
-    --text: #111b21;
-    --muted: #54656f;
-    --line: #d1d7db;
-    --hover: rgba(0, 0, 0, 0.06);
+    --text: #111113;
+    --muted: #6b6b72;
+    --line: #e4e4e7;
+    --hover: rgba(0, 0, 0, 0.05);
+    --chip: #e8e8eb;
+    --chip-text: #3f3f46;
+    --ink: #111113;
+    --on-ink: #ffffff;
     --accent: __ACCENT__;
-    --badge: #ef4444;
-    --danger: #d93025;
-    color-scheme: light dark;
+    --on-accent: #061414;
+    --danger: #c81e1e;
+    --ease: cubic-bezier(0.2, 0, 0, 1);
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b141a;
-      --panel: #111b21;
-      --text: #e9edef;
-      --muted: #8696a0;
-      --line: #2a3942;
-      --hover: rgba(255, 255, 255, 0.07);
+    :root:not([data-mode="light"]) {
+      --bg: #0f0f11;
+      --panel: #17171a;
+      --text: #ececee;
+      --muted: #8b8b92;
+      --line: #26262a;
+      --hover: rgba(255, 255, 255, 0.06);
+      --chip: #232327;
+      --chip-text: #c9c9cf;
+      --ink: #ececee;
+      --on-ink: #111113;
       --danger: #f28b82;
+      color-scheme: dark;
     }
+  }
+  :root[data-mode="dark"] {
+    --bg: #0f0f11;
+    --panel: #17171a;
+    --text: #ececee;
+    --muted: #8b8b92;
+    --line: #26262a;
+    --hover: rgba(255, 255, 255, 0.06);
+    --chip: #232327;
+    --chip-text: #c9c9cf;
+    --ink: #ececee;
+    --on-ink: #111113;
+    --danger: #f28b82;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
     background: var(--bg);
     color: var(--text);
+    transition: background-color 160ms var(--ease), color 160ms var(--ease);
     font: 14px/1.4 "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text",
       "Cantarell", "Ubuntu", "Noto Sans", system-ui, sans-serif;
     user-select: none;
@@ -56,14 +81,16 @@
     height: 40px;
     border: 0;
     border-radius: 50%;
-    color: #fff;
+    background: var(--chip);
+    color: var(--chip-text);
     font-weight: 600;
-    font-size: 14px;
-    letter-spacing: 0.02em;
-    transition: border-radius 120ms ease, transform 120ms ease;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    transition: border-radius 180ms var(--ease), background-color 180ms var(--ease), box-shadow 180ms var(--ease), color 180ms var(--ease);
   }
-  .avatar:hover { border-radius: 14px; }
-  .avatar.active { border-radius: 14px; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+  .avatar:hover { border-radius: 14px; background: var(--hover); box-shadow: inset 0 0 0 1px var(--line); color: var(--text); }
+  .avatar:active { transform: scale(0.96); }
+  .avatar.active { border-radius: 14px; background: var(--chip); color: var(--text); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
   .badge {
     position: absolute;
     top: -4px;
@@ -73,8 +100,9 @@
     padding: 0 5px;
     border: 2px solid var(--bg);
     border-radius: 9px;
-    background: var(--badge);
-    color: #fff;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
     font-size: 11px;
     line-height: 14px;
     text-align: center;
@@ -90,7 +118,8 @@
     font-size: 20px;
     line-height: 1;
   }
-  .tool:hover { background: var(--hover); color: var(--text); }
+  .tool { transition: background-color 160ms var(--ease), color 160ms var(--ease), border-color 160ms var(--ease); }
+  .tool:hover { background: var(--hover); color: var(--text); border-color: var(--muted); }
   .tool.plain { border-style: solid; border-color: transparent; font-size: 18px; }
   .locked-logo { width: 36px; height: 36px; opacity: 0.85; }
 
@@ -121,7 +150,8 @@
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    color: #fff;
+    background: var(--chip);
+    color: var(--chip-text);
     font-weight: 600;
     font-size: 12px;
     display: grid;
@@ -169,7 +199,10 @@
     border-radius: 10px;
     background: var(--panel);
   }
-  .button.primary { border-color: transparent; background: var(--accent); color: #fff; font-weight: 600; }
+  .button { transition: background-color 160ms var(--ease), border-color 160ms var(--ease); }
+  .button:hover:not(:disabled) { background: var(--hover); }
+  .button.primary { border-color: transparent; background: var(--ink); color: var(--on-ink); font-weight: 600; }
+  .button.primary:hover { background: var(--ink); opacity: 0.88; }
   .button.danger { border-color: transparent; background: var(--danger); color: #fff; font-weight: 600; }
   .button:disabled { opacity: 0.5; cursor: default; }
   [hidden] { display: none !important; }
@@ -207,7 +240,6 @@
       state.accounts.forEach((a, i) => {
         const b = el("button", {
           className: "avatar" + (a.active ? " active" : ""),
-          style: "background:" + a.color,
           title: a.name + (i < 9 ? "  (Ctrl+" + (i + 1) + ")" : ""),
           ariaLabel: a.name + (a.unread ? ", " + a.unread + " unread" : ""),
           ariaCurrent: a.active ? "true" : "false",
@@ -245,7 +277,7 @@
         input.addEventListener("change", save);
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
         sheet.append(el("div", { className: "row" },
-          el("div", { className: "dot", style: "background:" + a.color, textContent: a.initials, ariaHidden: "true" }),
+          el("div", { className: "dot", textContent: a.initials, ariaHidden: "true" }),
           input,
           el("button", { className: "icon", textContent: "↑", title: "Move up", ariaLabel: "Move " + a.name + " up", disabled: i === 0, onclick: () => post({ kind: "move", id: a.id, up: true }) }),
           el("button", { className: "icon", textContent: "↓", title: "Move down", ariaLabel: "Move " + a.name + " down", disabled: i === last, onclick: () => post({ kind: "move", id: a.id, up: false }) }),
@@ -268,6 +300,7 @@
     window.__rail = {
       render(next) {
         state = next;
+        if (state.dark === true || state.dark === false) document.documentElement.dataset.mode = state.dark ? "dark" : "light";
         if (!state.manage) confirming = null;
         document.getElementById("rail").hidden = state.manage;
         document.getElementById("manage").hidden = !state.manage;
