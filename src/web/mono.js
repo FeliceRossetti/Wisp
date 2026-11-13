@@ -53,8 +53,9 @@ const wispMono = (() => {
     if (chroma < 0.06 || s < 0.12) return null; // already neutral
     if (h < 65 || h >= 345) return null; // red, orange, yellow: errors and warnings
     const brand = h >= 70 && h <= 230;
-    if (brand && s >= 0.4 && l >= 0.22 && l <= 0.82) {
-      return format(fromHsl({ h: accent.h, s: Math.min(s, Math.max(accent.s, 0.55)), l }), c.a);
+    // A gray accent means pure monochrome: brand colors turn gray like the rest.
+    if (brand && accent.s >= 0.15 && s >= 0.4 && l >= 0.22 && l <= 0.82) {
+      return format(fromHsl({ h: accent.h, s: Math.min(s, accent.s), l }), c.a);
     }
     const g = Math.round(l * 255);
     return format({ r: g, g, b: g }, c.a);

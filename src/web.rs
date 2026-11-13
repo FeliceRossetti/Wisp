@@ -70,6 +70,8 @@ pub enum Ipc {
     Appearance {
         dark: bool,
     },
+    /// Open Settings (Ctrl/Cmd+,).
+    Settings,
 }
 
 impl std::fmt::Debug for Ipc {
@@ -113,6 +115,7 @@ impl Ipc {
             Ipc::Switch { .. } => "switch",
             Ipc::Cycle { .. } => "cycle",
             Ipc::Appearance { .. } => "appearance",
+            Ipc::Settings => "settings",
         }
     }
 }
